@@ -1,0 +1,348 @@
+/* ===== SMART FACE ATTENDANCE SYSTEM - ENHANCED STYLING ===== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* CSS Variables for Consistent Theming */
+:root {
+    --primary-blue: #1e40af;
+    --primary-light: #3b82f6;
+    --primary-dark: #1e3a8a;
+    --success-green: #10b981;
+    --danger-red: #ef4444;
+    --warning-yellow: #f59e0b;
+    --info-blue: #06b6d4;
+    --neutral-50: #f8fafc;
+    --neutral-100: #f1f5f9;
+    --neutral-200: #e2e8f0;
+    --neutral-300: #cbd5e1;
+    --neutral-400: #94a3b8;
+    --neutral-500: #64748b;
+    --neutral-600: #475569;
+    --neutral-700: #334155;
+    --neutral-800: #1e293b;
+    --neutral-900: #0f172a;
+    --gradient-primary: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-light) 50%, var(--info-blue) 100%);
+    --gradient-success: linear-gradient(135deg, var(--success-green) 0%, #059669 100%);
+    --gradient-danger: linear-gradient(135deg, var(--danger-red) 0%, #dc2626 100%);
+    --gradient-warning: linear-gradient(135deg, var(--warning-yellow) 0%, #d97706 100%);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Global Styles */
+.stApp {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+/* Hide Streamlit Branding */
+#MainMenu, .stDeployButton, .stDecoration, footer {
+    visibility: hidden !important;
+}
+
+/* Main Content Area */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    margin: 1rem;
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Sidebar Styling */
+.css-1d391kg {
+    background: linear-gradient(180deg, var(--neutral-900) 0%, var(--neutral-800) 100%);
+    border-right: none;
+    box-shadow: var(--shadow-xl);
+}
+
+.css-1d391kg .css-17eq0hr {
+    color: white;
+}
+
+.css-1d391kg .stMarkdown {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Enhanced Button Styles */
+.stButton button {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.stButton button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-blue) 50%, var(--info-blue) 100%);
+}
+
+.stButton button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-md);
+}
+
+/* Secondary Button Style */
+.stButton button[kind="secondary"] {
+    background: linear-gradient(135deg, var(--neutral-600) 0%, var(--neutral-700) 100%);
+    color: white;
+}
+
+.stButton button[kind="secondary"]:hover {
+    background: linear-gradient(135deg, var(--neutral-700) 0%, var(--neutral-800) 100%);
+}
+
+/* Success/Error/Warning/Info Messages */
+.stAlert {
+    border-radius: 12px;
+    border: none;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    margin: 1rem 0;
+}
+
+.stSuccess {
+    background: linear-gradient(135deg, var(--success-green) 0%, #059669 100%);
+    color: white;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.stError {
+    background: linear-gradient(135deg, var(--danger-red) 0%, #dc2626 100%);
+    color: white;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.stWarning {
+    background: linear-gradient(135deg, var(--warning-yellow) 0%, #d97706 100%);
+    color: white;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.stInfo {
+    background: linear-gradient(135deg, var(--info-blue) 0%, #0891b2 100%);
+    color: white;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+/* Enhanced Form Styling */
+.stTextInput > div > div > input,
+.stTextArea textarea,
+.stNumberInput > div > div > input {
+    border-radius: 12px;
+    border: 2px solid var(--neutral-200);
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+    box-shadow: var(--shadow-sm);
+    height: 48px;
+    min-height: 48px;
+}
+
+.stTextInput > div > div > input:focus,
+.stTextArea textarea:focus,
+.stNumberInput > div > div > input:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1), var(--shadow-md);
+    outline: none;
+}
+
+/* ===== SIMPLE SELECTBOX STYLING ===== */
+/* Only match the height and basic styling of other form fields */
+.stSelectbox > div > div > div {
+    height: 48px !important;
+    min-height: 48px !important;
+    border-radius: 12px !important;
+    border: 2px solid var(--neutral-200) !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 1rem !important;
+    background: white !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all 0.3s ease !important;
+}
+
+.stSelectbox > div > div > div:focus {
+    border-color: var(--primary-blue) !important;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1), var(--shadow-md) !important;
+    outline: none !important;
+}
+
+/* Simple dropdown styling */
+.stSelectbox [role="listbox"] {
+    border-radius: 8px !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.stSelectbox [role="option"]:hover {
+    background-color: var(--neutral-50) !important;
+}
+
+/* File Uploader Styling */
+.stFileUploader {
+    border: 2px dashed var(--primary-light) !important;
+    border-radius: 15px !important;
+    padding: 2rem !important;
+    text-align: center !important;
+    background: rgba(59, 130, 246, 0.05) !important;
+    transition: all 0.3s ease !important;
+}
+
+.stFileUploader:hover {
+    background: rgba(59, 130, 246, 0.1) !important;
+    border-color: var(--primary-blue) !important;
+}
+
+/* Camera Input Styling */
+.stCameraInput {
+    border-radius: 15px !important;
+    overflow: hidden !important;
+    box-shadow: var(--shadow-lg) !important;
+    border: 2px solid var(--neutral-200) !important;
+}
+
+/* Enhanced Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px !important;
+    background: var(--neutral-100) !important;
+    border-radius: 12px !important;
+    padding: 0.5rem !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    background: transparent !important;
+    border-radius: 8px !important;
+    padding: 0.75rem 1.5rem !important;
+    border: none !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    color: var(--neutral-600) !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    background: white !important;
+    color: var(--primary-blue) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    background: var(--gradient-primary) !important;
+    color: white !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+/* Enhanced Metrics */
+.stMetric {
+    background: white !important;
+    border-radius: 15px !important;
+    padding: 1.5rem !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 1px solid var(--neutral-200) !important;
+    transition: transform 0.3s ease !important;
+}
+
+.stMetric:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+/* DataFrames */
+.stDataFrame {
+    border-radius: 15px !important;
+    overflow: hidden !important;
+    box-shadow: var(--shadow-lg) !important;
+    border: 1px solid var(--neutral-200) !important;
+}
+
+/* Progress Bar */
+.stProgress > div > div {
+    background: var(--gradient-primary) !important;
+    border-radius: 10px !important;
+}
+
+.stProgress > div {
+    background: var(--neutral-200) !important;
+    border-radius: 10px !important;
+}
+
+/* Checkbox Styling */
+.stCheckbox > label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.stCheckbox > label:hover {
+    color: var(--primary-blue) !important;
+}
+
+/* Spinner Overlay */
+.stSpinner {
+    border-radius: 15px !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+/* Expander Styling */
+.streamlit-expanderHeader {
+    background: var(--neutral-100) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    border: 1px solid var(--neutral-200) !important;
+    transition: all 0.3s ease !important;
+}
+
+.streamlit-expanderHeader:hover {
+    background: var(--neutral-50) !important;
+    border-color: var(--primary-light) !important;
+}
+
+/* Enhanced Sidebar */
+.css-1d391kg .stButton button {
+    width: 100% !important;
+    margin-bottom: 0.5rem !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.css-1d391kg .stButton button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    transform: translateX(5px) !important;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--neutral-100);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-light);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-blue);
+}
