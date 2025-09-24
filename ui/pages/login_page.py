@@ -55,7 +55,7 @@ class LoginPage:
             self._handle_login(email, password)
         
         # Demo credentials info
-        st.info("🔑 **Demo Credentials:**\n- Email: admin@attendance.com\n- Password: admin123")
+        st.info("🔑 **Demo Credentials:**\n- Email: enter your email\n- Password: set password in signup")
     
     def _render_signup_tab(self):
         """Render signup tab"""
