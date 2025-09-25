@@ -6,12 +6,15 @@ import streamlit as st
 import os
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
+
 import sys
 from pathlib import Path
+
 
 # Add project root to Python path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
+
 
 # Initialize basic logging first
 import logging
@@ -20,6 +23,30 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def setup_database_and_admin():
+    """Setup database and ensure admin exists"""
+    try:
+        from database.migration import ensure_admin_exists
+        
+        # This function is safe to call multiple times
+        admin_ready = ensure_admin_exists()
+        
+        if admin_ready:
+            logger.info("✅ System ready with admin user!")
+            # Show success message in sidebar (non-blocking)
+            if 'admin_setup_shown' not in st.session_state:
+                st.session_state.admin_setup_shown = True
+                st.sidebar.success("✅ System ready!")
+        else:
+            logger.warning("⚠️ Admin setup incomplete")
+            st.sidebar.warning("⚠️ Admin setup incomplete")
+            
+    except Exception as e:
+        logger.error(f"❌ Setup error: {str(e)}")
+        st.sidebar.error(f"❌ Setup error: {str(e)}")
+
 
 try:
     # Import configuration and core components
@@ -39,6 +66,7 @@ except ImportError as e:
     st.error("🔧 Please ensure all required files are in place")
     st.stop()
 
+
 # Streamlit configuration
 st.set_page_config(
     page_title=PAGE_TITLE,
@@ -46,6 +74,7 @@ st.set_page_config(
     layout=LAYOUT,
     initial_sidebar_state=SIDEBAR_STATE
 )
+
 
 def load_custom_css():
     """Load custom CSS styling"""
@@ -60,12 +89,16 @@ def load_custom_css():
     except Exception as e:
         logger.error(f"Error loading CSS: {e}")
 
+
 def initialize_application():
     """Initialize application components"""
     try:
         # Initialize database
         init_database()
         logger.info("Database initialized successfully")
+        
+        # Setup admin user (NEW)
+        setup_database_and_admin()
         
         # Load custom styling
         load_custom_css()
@@ -80,6 +113,7 @@ def initialize_application():
         logger.error(f"Application initialization failed: {e}")
         st.error(f"❌ Application initialization failed: {str(e)}")
         return False
+
 
 def main():
     """Main application logic"""
@@ -133,6 +167,7 @@ def main():
                     for key in list(st.session_state.keys()):
                         del st.session_state[key]
                     st.rerun()
+
 
 if __name__ == "__main__":
     try:

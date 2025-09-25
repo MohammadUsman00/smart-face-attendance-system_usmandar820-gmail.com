@@ -11,7 +11,7 @@ class ThemeToggle:
 
     def __init__(self):
         self.theme_key = "app_theme"
-        self.default_theme = "light"
+        self.default_theme = "dark"
 
         # Initialize theme if not set
         if self.theme_key not in st.session_state:

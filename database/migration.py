@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import List, Dict, Any
 from database.connection import get_db_connection
 from utils.backup_manager import BackupManager
-from config.database import TABLE_SCHEMAS, DATABASE_INDEXES
+
 
 logger = logging.getLogger(__name__)
+
 
 class DatabaseMigration:
     """Handle database migrations and schema updates"""
@@ -188,7 +189,146 @@ class DatabaseMigration:
             logger.error(f"Attendance migration failed: {e}")
             return False
 
+
 def migrate_from_old_database(old_db_path: str) -> bool:
     """Convenience function for migration"""
     migration = DatabaseMigration()
     return migration.migrate_from_old_system(old_db_path)
+
+
+# ADMIN CREATION FUNCTIONS WITH DEBUGGING
+def create_default_admin():
+    """Create default admin user from configuration"""
+    try:
+        from config.settings import ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_ROLE
+        
+        # Debug: Print what values we got
+        logger.info(f"📧 Admin Email: {ADMIN_EMAIL}")
+        logger.info(f"🔑 Admin Password: {'*' * len(ADMIN_PASSWORD) if ADMIN_PASSWORD else 'None'}")
+        logger.info(f"👤 Admin Role: {ADMIN_ROLE}")
+        
+        # Try importing user repository
+        try:
+            from database.user_repository import UserRepository
+            logger.info("✅ UserRepository imported successfully")
+        except ImportError as e:
+            logger.error(f"❌ Failed to import UserRepository: {e}")
+            return False
+        
+        # Try importing hash function
+        try:
+            from auth.authentication import hash_password
+            logger.info("✅ hash_password imported successfully")
+        except ImportError as e:
+            # Try alternative import paths
+            try:
+                from auth.auth import hash_password
+                logger.info("✅ hash_password imported from auth.auth")
+            except ImportError:
+                try:
+                    from utils.helpers import hash_password
+                    logger.info("✅ hash_password imported from utils.helpers")
+                except ImportError:
+                    logger.error(f"❌ Could not import hash_password function: {e}")
+                    return False
+        
+        user_repo = UserRepository()
+        
+        # Check if admin already exists
+        try:
+            existing_admin = user_repo.get_user_by_email(ADMIN_EMAIL)
+            if existing_admin:
+                logger.info(f"ℹ️ Admin user already exists: {ADMIN_EMAIL}")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error checking existing admin: {e}")
+            return False
+        
+        # Create admin user
+        try:
+            hashed_password = hash_password(ADMIN_PASSWORD)
+            logger.info("✅ Password hashed successfully")
+        except Exception as e:
+            logger.error(f"❌ Error hashing password: {e}")
+            return False
+        
+        # Try to create admin
+        try:
+            # Try different method signatures that might exist
+            admin_created = None
+            
+            # Method 1: Try with username, email, password_hash, role
+            try:
+                admin_created = user_repo.create_user(
+                    username="admin",
+                    email=ADMIN_EMAIL,
+                    password_hash=hashed_password,
+                    role=ADMIN_ROLE
+                )
+            except Exception as e1:
+                logger.warning(f"Method 1 failed: {e1}")
+                
+                # Method 2: Try with email, password, role
+                try:
+                    admin_created = user_repo.create_user(
+                        email=ADMIN_EMAIL,
+                        password=hashed_password,
+                        role=ADMIN_ROLE
+                    )
+                except Exception as e2:
+                    logger.warning(f"Method 2 failed: {e2}")
+                    
+                    # Method 3: Try with different parameter names
+                    try:
+                        admin_created = user_repo.create_user(
+                            email=ADMIN_EMAIL,
+                            password_hash=hashed_password,
+                            role=ADMIN_ROLE
+                        )
+                    except Exception as e3:
+                        logger.error(f"All creation methods failed. Last error: {e3}")
+                        return False
+            
+            if admin_created:
+                logger.info(f"✅ Default admin created: {ADMIN_EMAIL}")
+                return True
+            else:
+                logger.error("❌ Failed to create admin user - returned False")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Unexpected error during admin creation: {e}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Admin creation error: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return False
+
+
+def initialize_fresh_database():
+    """Initialize a fresh database with default admin"""
+    try:
+        # First, ensure all tables exist (you might already have this)
+        from database.connection import create_tables_and_admin
+        create_tables_and_admin()
+        
+        # Then create default admin
+        admin_created = create_default_admin()
+        
+        if admin_created:
+            logger.info("✅ Fresh database initialized with admin")
+            return True
+        else:
+            logger.warning("⚠️ Database initialized but admin creation failed")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        return False
+
+
+def ensure_admin_exists():
+    """Ensure admin exists - safe to call multiple times"""
+    return create_default_admin()
