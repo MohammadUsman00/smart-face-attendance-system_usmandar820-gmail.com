@@ -104,8 +104,6 @@ docs/_build/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# pyenv
-.python-version
 
 # Large files
 *.mp4
