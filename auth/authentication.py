@@ -8,11 +8,14 @@ import logging
 from datetime import datetime, timedelta
 from typing import Tuple, Optional, Dict, List  # Added missing imports
 
+
 from config.settings import SALT, TOKEN_EXPIRY_HOURS
 from database.user_repository import UserRepository
 from auth.validators import validate_email, validate_password, validate_username, sanitize_input
 
+
 logger = logging.getLogger(__name__)
+
 
 class AuthenticationService:
     """Handle user authentication operations"""
@@ -122,7 +125,7 @@ class AuthenticationService:
             # Check if user exists
             user = self.user_repo.get_user_by_email(email)
             if not user:
-                # Don't reveal if email exists or not
+                # Don't reveal if email exists or not for security
                 return True, "If the email exists, a reset link will be sent", None
             
             # Generate reset token
@@ -133,8 +136,19 @@ class AuthenticationService:
             success = self.user_repo.store_reset_token(email, reset_token, expires)
             
             if success:
-                logger.info(f"Password reset initiated for: {email}")
-                return True, "Reset token generated", reset_token
+                # Send email with reset token
+                try:
+                    from utils.email_service import EmailService
+                    email_service = EmailService()
+                    email_sent, email_message = email_service.send_password_reset_email(email, reset_token)
+                    
+                    logger.info(f"Password reset initiated for: {email}")
+                    return True, email_message, reset_token
+                    
+                except Exception as email_error:
+                    logger.error(f"Email service error: {email_error}")
+                    # Fallback: return token directly
+                    return True, f"🔑 Reset token generated: {reset_token}", reset_token
             else:
                 return False, "Failed to generate reset token", None
                 
@@ -183,3 +197,22 @@ class AuthenticationService:
     def delete_user(self, user_id: int) -> Tuple[bool, str]:
         """Delete user (admin only)"""
         return self.user_repo.delete_user(user_id)
+
+
+# Standalone functions for backward compatibility
+def hash_password(password: str) -> str:
+    """Standalone hash password function"""
+    auth_service = AuthenticationService()
+    return auth_service.hash_password(password)
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Standalone verify password function"""
+    auth_service = AuthenticationService()
+    return auth_service.verify_password(password, stored_hash)
+
+
+def generate_secure_token() -> str:
+    """Standalone token generation function"""
+    auth_service = AuthenticationService()
+    return auth_service.generate_secure_token()
