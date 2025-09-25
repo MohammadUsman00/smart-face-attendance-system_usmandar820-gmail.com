@@ -5,7 +5,6 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
 [![DeepFace](https://img.shields.io/badge/DeepFace-0.0.79-green.svg)](https://github.com/serengil/deepface)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 
 ## 🌟 **Project Overview**
@@ -17,13 +16,60 @@ This system combines the power of artificial intelligence with an intuitive user
 ## 🎯 **Key Features**
 
 ### **🔹 Core Functionality**
+
 - **🎭 Advanced Face Recognition** - ArcFace + RetinaFace for 99.5% accuracy
 - **📸 Multi-Photo Registration** - 2-5 photos per person for enhanced recognition
 - **🔄 Dual Tracking System** - Separate IN/OUT attendance with smart detection
 - **⏰ Real-Time Processing** - Instant attendance marking with millisecond precision
 - **📊 Course Management** - Support for 5 departments (CSE, CE, EE, BE, ME)
 
+## 📸 Screenshots
+
+## 📸 Screenshots
+
+### A glimpse of Smart-Face-Attendance-System
+
+<p align="center">
+  <img src="./assets/Screenshot 2025-09-25 185256.png" alt="Screenshot 1" width="45%"/>
+  <img src="./assets/Screenshot 2025-09-25 185422.png" alt="Screenshot 2" width="45%"/>
+</p>
+
+<p align="center">
+  <img src="./assets/Screenshot 2025-09-25 185634.png" alt="Screenshot 3" width="45%"/>
+  <img src="./assets/Screenshot 2025-09-25 185732.png" alt="Screenshot 4" width="45%"/>
+</p>
+
+<p align="center">
+  <img src="./assets/Screenshot 2025-09-25 185904.png" alt="Screenshot 5" width="45%"/>
+  <img src="./assets/Screenshot 2025-09-25 185950.png" alt="Screenshot 6" width="45%"/>
+</p>
+
+<p align="center">
+  <img src="./assets/Screenshot 2025-09-25 190035.png" alt="Screenshot 7" width="45%"/>
+  <img src="./assets/Screenshot 2025-09-25 190106.png" alt="Screenshot 8" width="45%"/>
+</p>
+
+<p align="center">
+  <img src="./assets/Screenshot 2025-09-25 190140.png" alt="Screenshot 9" width="45%"/>
+  <img src="./assets/Screenshot 2025-09-25 190203.png" alt="Screenshot 10" width="45%"/>
+</p>
+
+<p align="center">
+  <img src="./assets/Screenshot 2025-09-25 190233.png" alt="Screenshot 11" width="45%"/>
+  <img src="./assets/Screenshot 2025-09-25 190306.png" alt="Screenshot 12" width="45%"/>
+</p>
+
+<p align="center">
+  <img src="./assets/Screenshot 2025-09-25 190337.png" alt="Screenshot 13" width="45%"/>
+  <img src="./assets/Screenshot 2025-09-25 190550.png" alt="Screenshot 14" width="45%"/>
+</p>
+
+<p align="center">
+  <img src="./assets/Screenshot 2025-09-25 190710.png" alt="Screenshot 15" width="45%"/>
+</p>
+
 ### **🔹 Authentication & Security**
+
 - **🔐 Secure Login System** - SHA-256 encryption with salt protection
 - **🔑 Password Reset** - Token-based password recovery system
 - **👥 Role-Based Access** - Admin and User roles with proper permissions
@@ -31,6 +77,7 @@ This system combines the power of artificial intelligence with an intuitive user
 - **📋 Audit Logging** - Complete activity tracking and monitoring
 
 ### **🔹 Analytics & Reporting**
+
 - **📈 Advanced Analytics** - Daily/weekly/monthly attendance trends
 - **🏆 Course-wise Analysis** - Department performance comparison
 - **📊 Interactive Charts** - Plotly-powered visualizations
@@ -38,6 +85,7 @@ This system combines the power of artificial intelligence with an intuitive user
 - **⏰ Peak Hours Analysis** - Identify busy periods and usage patterns
 
 ### **🔹 Admin Controls**
+
 - **👨‍💼 Student Management** - Complete CRUD operations with photo management
 - **👥 User Management** - Admin user creation and role assignment
 - **⚠️ Danger Zone** - System reset and bulk operations with safety checks
@@ -120,16 +168,16 @@ FACE-DETECTION-SYSTEM/
 
 ### **🔧 Technical Stack**
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Frontend** | Streamlit | Interactive web interface with modern UI |
-| **Backend** | Python 3.8+ | Core application logic and APIs |
-| **Database** | SQLite | Lightweight, ACID-compliant database |
-| **AI/ML** | DeepFace, ArcFace | Face recognition and encoding |
-| **Detection** | RetinaFace | Robust face detection in images |
-| **Visualization** | Plotly | Interactive charts and analytics |
-| **Architecture** | Modular Design | Separation of concerns and scalability |
-| **Styling** | CSS3 | Modern, responsive UI design |
+| Layer             | Technology        | Purpose                                  |
+| ----------------- | ----------------- | ---------------------------------------- |
+| **Frontend**      | Streamlit         | Interactive web interface with modern UI |
+| **Backend**       | Python 3.8+       | Core application logic and APIs          |
+| **Database**      | SQLite            | Lightweight, ACID-compliant database     |
+| **AI/ML**         | DeepFace, ArcFace | Face recognition and encoding            |
+| **Detection**     | RetinaFace        | Robust face detection in images          |
+| **Visualization** | Plotly            | Interactive charts and analytics         |
+| **Architecture**  | Modular Design    | Separation of concerns and scalability   |
+| **Styling**       | CSS3              | Modern, responsive UI design             |
 
 ### **🎯 Database Schema**
 
@@ -213,12 +261,14 @@ CREATE TABLE audit_logs (
 ### **⚡ Installation**
 
 #### **1. Clone/Download Project**
+
 ```bash
 git clone https://github.com/yourusername/smart-face-attendance.git
 cd smart-face-attendance
 ```
 
 #### **2. Create Virtual Environment**
+
 ```bash
 # Create virtual environment
 python -m venv venv
@@ -231,6 +281,7 @@ source venv/bin/activate
 ```
 
 #### **3. Install Dependencies**
+
 ```bash
 # Install required packages
 pip install -r requirements.txt
@@ -240,6 +291,7 @@ pip install -r requirements-dev.txt
 ```
 
 #### **4. Environment Setup**
+
 ```bash
 # Create environment configuration
 echo "SECRET_KEY=your_very_secure_secret_key_change_this" > .env
@@ -248,6 +300,7 @@ echo "DATABASE_URL=sqlite:///data/attendance.db" >> .env
 ```
 
 #### **5. Initialize Database**
+
 ```bash
 # Run database migrations
 python -c "from database.migration import run_all_migrations; run_all_migrations()"
@@ -257,6 +310,7 @@ python database/migration.py
 ```
 
 #### **6. Launch Application**
+
 ```bash
 # Start the application
 streamlit run main.py
@@ -266,6 +320,7 @@ streamlit run main.py --server.port 8501 --server.address localhost
 ```
 
 #### **7. Access System**
+
 ```
 🌐 Open Browser: http://localhost:8501
 📧 Create Admin Account: Use the signup feature
@@ -277,13 +332,16 @@ streamlit run main.py --server.port 8501 --server.address localhost
 ### **For Administrators**
 
 #### **🔧 Initial Setup**
+
 1. **Create Admin Account** - Use the signup page to create your admin account
 2. **System Configuration** - Configure basic settings and preferences
 3. **Database Setup** - Initialize database with required tables
 4. **First Student Registration** - Add your first student with photos
 
 #### **👥 Student Management**
+
 1. **Add New Students**
+
    - Navigate to Student Management
    - Fill student information (Name, Roll Number, Email, Course)
    - Upload 2-5 clear photos for better recognition
@@ -296,12 +354,14 @@ streamlit run main.py --server.port 8501 --server.address localhost
    - Deactivate/remove students
 
 #### **📊 Attendance Monitoring**
+
 1. **Real-time Dashboard** - Monitor today's attendance status
 2. **Manual Attendance** - Mark attendance manually when needed
 3. **Attendance Reports** - Generate detailed reports by date/course
 4. **Analytics** - View comprehensive attendance analytics
 
 #### **📈 Analytics & Reports**
+
 1. **Dashboard Overview** - Key metrics and today's summary
 2. **Trend Analysis** - Daily, weekly, monthly attendance patterns
 3. **Course Performance** - Department-wise attendance comparison
@@ -310,12 +370,14 @@ streamlit run main.py --server.port 8501 --server.address localhost
 ### **For Students/Users**
 
 #### **🎯 Daily Attendance**
+
 1. **Access System** - Login with your credentials
 2. **Mark Attendance** - Use webcam to capture your face
 3. **Automatic Detection** - System detects IN/OUT automatically
 4. **Confirmation** - Receive instant confirmation with details
 
 #### **📊 Personal Dashboard**
+
 1. **Attendance Status** - View your today's status
 2. **History** - Check your attendance history
 3. **Statistics** - Monitor your attendance percentage
@@ -324,6 +386,7 @@ streamlit run main.py --server.port 8501 --server.address localhost
 ## 🎯 **Feature Walkthrough**
 
 ### **📸 Smart Attendance Marking**
+
 - **Webcam Integration** - Seamless camera integration with live preview
 - **Face Detection** - Automatic face detection with confidence scoring
 - **Recognition Engine** - ArcFace model for accurate face recognition
@@ -331,6 +394,7 @@ streamlit run main.py --server.port 8501 --server.address localhost
 - **Real-time Feedback** - Instant confirmation with student details and timestamps
 
 ### **📊 Advanced Analytics Dashboard**
+
 - **Live Statistics** - Real-time attendance metrics and KPIs
 - **Interactive Charts** - Plotly-powered visualizations with drill-down capability
 - **Trend Analysis** - Historical data analysis with pattern recognition
@@ -338,6 +402,7 @@ streamlit run main.py --server.port 8501 --server.address localhost
 - **Export Options** - Multiple format support (CSV, Excel, PDF)
 
 ### **👥 Enterprise Student Management**
+
 - **Bulk Registration** - Support for bulk student import/export
 - **Photo Management** - Multi-photo support with quality assessment
 - **Profile Validation** - Comprehensive data validation and verification
@@ -345,6 +410,7 @@ streamlit run main.py --server.port 8501 --server.address localhost
 - **Search & Filter** - Advanced search with multiple filter options
 
 ### **🔐 Advanced Security Features**
+
 - **Multi-factor Authentication** - Enhanced security for admin accounts
 - **Session Security** - Secure session management with timeout
 - **Audit Logging** - Complete activity tracking and monitoring
@@ -354,6 +420,7 @@ streamlit run main.py --server.port 8501 --server.address localhost
 ## 🔧 **Configuration**
 
 ### **Environment Variables (.env)**
+
 ```env
 # Security Configuration
 SECRET_KEY=your_very_secure_secret_key_change_this_in_production
@@ -386,6 +453,7 @@ MAX_CONCURRENT_USERS=100
 ```
 
 ### **Face Recognition Settings**
+
 ```python
 # Recognition Engine Configuration
 RECOGNITION_CONFIG = {
@@ -404,8 +472,10 @@ RECOGNITION_CONFIG = {
 ### **Common Issues & Solutions**
 
 #### **🔧 Face Recognition Issues**
+
 **Problem**: Face not recognized or low accuracy
 **Solutions**:
+
 - Ensure good lighting conditions (avoid backlighting)
 - Use front-facing, clear photos during registration
 - Register multiple photos from different angles
@@ -413,8 +483,10 @@ RECOGNITION_CONFIG = {
 - Verify face is clearly visible without obstructions
 
 #### **🔧 Database Issues**
+
 **Problem**: Database connection errors or corruption
 **Solutions**:
+
 - Check database file permissions
 - Verify SQLite installation
 - Run database integrity check: `PRAGMA integrity_check;`
@@ -422,8 +494,10 @@ RECOGNITION_CONFIG = {
 - Reinitialize database with migration scripts
 
 #### **🔧 Authentication Issues**
+
 **Problem**: Login failures or session timeouts
 **Solutions**:
+
 - Verify email format and password strength
 - Clear browser cache and cookies
 - Check session timeout settings in .env
@@ -431,8 +505,10 @@ RECOGNITION_CONFIG = {
 - Verify user account is active
 
 #### **🔧 Performance Issues**
+
 **Problem**: Slow response times or system lag
 **Solutions**:
+
 - Close unnecessary background applications
 - Ensure minimum system requirements are met
 - Optimize photo sizes (recommended: 800x600 pixels)
@@ -440,6 +516,7 @@ RECOGNITION_CONFIG = {
 - Monitor system resources (CPU, RAM, Disk)
 
 ### **🚨 Debug Mode**
+
 ```bash
 # Enable debug logging
 export DEBUG=True
@@ -455,6 +532,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 ## 📊 **System Requirements**
 
 ### **Minimum Requirements**
+
 - **Operating System**: Windows 10, macOS 10.14, Ubuntu 18.04+
 - **Python Version**: 3.8 or higher
 - **RAM**: 4GB minimum
@@ -463,6 +541,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 - **Internet**: Required for initial package installation
 
 ### **Recommended Requirements**
+
 - **RAM**: 8GB or higher for optimal performance
 - **Storage**: 5GB free space for extended usage
 - **Camera**: HD webcam (720p or higher) for better recognition
@@ -470,6 +549,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 - **Internet**: Stable connection for updates and cloud features
 
 ### **Enterprise Requirements**
+
 - **RAM**: 16GB for high-volume usage
 - **Storage**: 10GB+ with SSD for database performance
 - **Network**: Gigabit ethernet for multi-user access
@@ -479,6 +559,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 ## 📊 **Performance Metrics**
 
 ### **Recognition Performance**
+
 - **Accuracy**: 99.5% under optimal lighting conditions
 - **Processing Speed**: < 2 seconds per face recognition
 - **Throughput**: 50+ concurrent recognitions per minute
@@ -486,6 +567,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 - **False Negative Rate**: < 0.5%
 
 ### **System Performance**
+
 - **Response Time**: < 1 second for dashboard loads
 - **Database Capacity**: 10,000+ student records
 - **Photo Storage**: Efficient compression (avg 50KB per photo)
@@ -493,6 +575,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 - **Uptime**: 99.9% availability with proper deployment
 
 ### **Scalability Metrics**
+
 - **Students**: Tested with 5,000+ student records
 - **Photos**: 25,000+ photos with maintained performance
 - **Daily Attendance**: 1,000+ daily attendance records
@@ -501,6 +584,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 ## 🔒 **Security & Compliance**
 
 ### **Data Protection**
+
 - **Local Storage**: All data stored locally (GDPR compliant)
 - **Encryption**: SHA-256 password hashing with unique salts
 - **Session Security**: Secure token-based session management
@@ -508,6 +592,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 - **Data Backup**: Automated backup with encryption
 
 ### **Privacy Features**
+
 - **Photo Privacy**: Local storage with restricted access
 - **Data Minimization**: Collect only necessary information
 - **User Consent**: Clear consent mechanisms for photo storage
@@ -515,6 +600,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 - **Access Control**: Role-based access with principle of least privilege
 
 ### **Compliance Standards**
+
 - **GDPR**: European data protection regulation compliance
 - **FERPA**: Educational privacy act compliance (US)
 - **SOC 2**: Security framework alignment
@@ -523,6 +609,7 @@ python -c "from utils.helpers import system_health_check; system_health_check()"
 ## 🚧 **Deployment Options**
 
 ### **Development Environment**
+
 ```bash
 # Quick start for development
 git clone [repository]
@@ -532,6 +619,7 @@ streamlit run main.py
 ```
 
 ### **Production Deployment**
+
 ```bash
 # Using Docker
 docker build -t smart-attendance .
@@ -542,6 +630,7 @@ docker-compose up -d
 ```
 
 ### **Cloud Deployment**
+
 - **AWS**: Deploy on EC2 with RDS for database
 - **Google Cloud**: Use App Engine with Cloud SQL
 - **Azure**: Deploy on App Service with Azure SQL
@@ -550,6 +639,7 @@ docker-compose up -d
 ## 🎁 **Future Enhancements**
 
 ### **Planned Features**
+
 - **Mobile Application** - Native Android/iOS apps
 - **Cloud Integration** - Optional cloud backup and sync
 - **Advanced ML Models** - Improved recognition accuracy
@@ -559,6 +649,7 @@ docker-compose up -d
 - **Real-time Notifications** - Email/SMS alerts for attendance
 
 ### **Enterprise Features**
+
 - **Multi-tenant Architecture** - Support for multiple organizations
 - **Advanced Reporting** - Custom report builder
 - **Integration APIs** - ERP/LMS system integrations
@@ -570,6 +661,7 @@ docker-compose up -d
 We welcome contributions from the community! Here's how to get involved:
 
 ### **Development Setup**
+
 ```bash
 # Fork the repository
 # Clone your fork
@@ -587,6 +679,7 @@ pre-commit install
 ```
 
 ### **Contribution Guidelines**
+
 1. **Fork** the repository
 2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
 3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
@@ -594,35 +687,17 @@ pre-commit install
 5. **Open** a Pull Request
 
 ### **Code Standards**
+
 - Follow PEP 8 Python style guide
 - Write comprehensive tests for new features
 - Update documentation for any changes
 - Use meaningful commit messages
 - Ensure all tests pass before submitting PR
 
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-```
-MIT License
-
-Copyright (c) 2024 Smart Face Attendance System
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-```
-
 ## 🙏 **Acknowledgments**
 
 ### **Open Source Libraries**
+
 - **[DeepFace](https://github.com/serengil/deepface)** - Lightweight face recognition and facial attribute analysis framework
 - **[Streamlit](https://streamlit.io/)** - The fastest way to build and share data apps
 - **[OpenCV](https://opencv.org/)** - Computer vision and machine learning software library
@@ -630,25 +705,13 @@ copies or substantial portions of the Software.
 - **[SQLite](https://sqlite.org/)** - Self-contained, serverless, zero-configuration SQL database engine
 
 ### **Research & Development**
+
 - **ArcFace**: Deep Face Recognition paper by Deng et al.
 - **RetinaFace**: Single-stage Dense Face Localisation in the Wild
 - **Face Recognition Community**: For continuous improvements in face recognition technology
 
-## 📞 **Support & Contact**
-
-### **Getting Help**
-- 📧 **Email**: support@smartattendance.com
-- 📝 **Issues**: [GitHub Issues](https://github.com/yourusername/smart-face-attendance/issues)
-- 📖 **Documentation**: [Project Wiki](https://github.com/yourusername/smart-face-attendance/wiki)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/smart-face-attendance/discussions)
-
-### **Commercial Support**
-- 🏢 **Enterprise Support**: Available for large deployments
-- 🛠️ **Custom Development**: Tailored solutions for specific requirements
-- 📚 **Training**: On-site training and setup assistance
-- 🔧 **Maintenance**: Ongoing support and maintenance contracts
-
 ### **Community**
+
 - 🌟 **Star** the repository if you find it useful
 - 🐛 **Report bugs** through GitHub issues
 - 💡 **Suggest features** via GitHub discussions
@@ -659,13 +722,13 @@ copies or substantial portions of the Software.
 <div align="center">
 
 **🎓 Smart Face Attendance System**
-*Revolutionizing Attendance Management with AI*
+_Revolutionizing Attendance Management with AI_
 
 **Built with ❤️ for Educational Excellence**
 
-[⭐ Star on GitHub](https://github.com/yourusername/smart-face-attendance) • 
-[📖 Documentation](https://github.com/yourusername/smart-face-attendance/wiki) • 
-[🐛 Report Bug](https://github.com/yourusername/smart-face-attendance/issues) • 
+[⭐ Star on GitHub](https://github.com/yourusername/smart-face-attendance) •
+[📖 Documentation](https://github.com/yourusername/smart-face-attendance/wiki) •
+[🐛 Report Bug](https://github.com/yourusername/smart-face-attendance/issues) •
 [💡 Request Feature](https://github.com/yourusername/smart-face-attendance/discussions)
 
 </div>
