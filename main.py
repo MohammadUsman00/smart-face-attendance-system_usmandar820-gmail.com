@@ -3,6 +3,9 @@ Main application entry point
 Modular Smart Face Attendance System
 """
 import streamlit as st
+import os
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+
 import sys
 from pathlib import Path
 
