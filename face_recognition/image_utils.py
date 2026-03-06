@@ -7,7 +7,11 @@ import numpy as np
 import cv2
 import logging
 from typing import Tuple, Optional
+
+from deepface import DeepFace
+
 from utils.image_converter import ImageConverter, validate_image_for_cv2
+from config.settings import DETECTOR_BACKEND
 
 logger = logging.getLogger(__name__)
 
@@ -92,38 +96,48 @@ def validate_image_quality(image, min_face_size: int = 50) -> Tuple[bool, str]:
         return False, f"Error validating image: {str(e)}"
 
 def detect_face_in_image(image) -> Tuple[bool, str, Optional[np.ndarray]]:
-    """Detect face in image and return processed face region"""
+    """Detect a single face in an image using DeepFace backends (e.g., RetinaFace/MTCNN).
+
+    Returns a cropped, resized face region suitable for embedding generation.
+    This replaces the older Haar Cascade–based approach for higher accuracy.
+    """
     try:
-        # Validate image first
         if not validate_image_for_cv2(image):
             return False, "Invalid image format", None
-        
-        # Ensure proper format
+
         image = ImageConverter.ensure_uint8_format(image)
         image = ImageConverter.ensure_3_channel(image)
-        
+
         if image is None:
             return False, "Failed to preprocess image", None
-        
-        # Use OpenCV's face detector
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(50, 50))
-        
-        if len(faces) == 0:
+
+        # DeepFace expects RGB images
+        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        # Use the configured detector backend (typically 'retinaface' or 'mtcnn')
+        faces = DeepFace.extract_faces(
+            img_path=rgb,
+            detector_backend=DETECTOR_BACKEND,
+            enforce_detection=False,
+        )
+
+        if not faces:
             return False, "No face detected in image", None
-        elif len(faces) > 1:
+        if len(faces) > 1:
             return False, "Multiple faces detected. Please ensure only one face is visible", None
-        
-        # Extract face region
-        x, y, w, h = faces[0]
-        face_region = image[y:y+h, x:x+w]
-        
-        # Resize face region for consistency
-        face_resized = cv2.resize(face_region, (224, 224))
-        
+
+        face_obj = faces[0]
+        # DeepFace returns dicts with either 'face' or 'facial_area' + 'face'
+        face_img = face_obj.get("face", None)
+        if face_img is None:
+            return False, "Failed to extract face region", None
+
+        # Convert back to BGR for consistency with the rest of the pipeline
+        face_bgr = cv2.cvtColor((face_img * 255).astype("uint8"), cv2.COLOR_RGB2BGR)
+
+        face_resized = cv2.resize(face_bgr, (224, 224))
         return True, "Face detected successfully", face_resized
-        
+
     except Exception as e:
         logger.error(f"Error detecting face: {e}")
         return False, f"Face detection error: {str(e)}", None

@@ -22,11 +22,36 @@ class LoginPage:
     
     def render(self):
         """Render complete login page"""
-        col1, col2, col3 = st.columns([6, 1, 1])
-        with col3:
+        # Top utility / theme row
+        top_left, _, top_right = st.columns([6, 2, 2])
+        with top_right:
             theme_toggle.render_toggle_button()
-        st.title("🎓 Smart Face Attendance System")
-        st.markdown("### 🔐 Secure Authentication Portal")
+
+        # Hero header section
+        header_col1, header_col2 = st.columns([3, 2])
+        with header_col1:
+            st.title("🎓 Smart Face Attendance System")
+            st.markdown(
+                "#### 🔐 Secure Authentication Portal\n"
+                "Streamlined access for administrators and students with smart face recognition."
+            )
+            st.markdown(
+                "- **Reliable** role‑based access control\n"
+                "- **Fast** onboarding with guided forms\n"
+                "- **Secure** password reset workflow"
+            )
+        with header_col2:
+            with st.container():
+                st.markdown("##### Session Information")
+                st.info(
+                    "Your credentials are encrypted and processed securely.\n\n"
+                    "Use your institutional email to sign in or register."
+                )
+
+        st.markdown("---")
+
+        # Auth card
+        st.markdown("### Account Access")
         
         # Create tabs for different auth options
         tab1, tab2, tab3 = st.tabs(["🔑 Login", "👤 Sign Up", "🔒 Forgot Password"])

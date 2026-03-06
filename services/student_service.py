@@ -7,6 +7,11 @@ import uuid
 from typing import List, Dict, Tuple, Optional
 from database.student_repository import StudentRepository
 from face_recognition.recognition_engine import FaceRecognitionEngine
+from utils.embeddings import (
+    load_embeddings_cache,
+    save_embeddings_cache,
+    clear_embeddings_cache,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +21,8 @@ class StudentService:
     def __init__(self):
         self.student_repo = StudentRepository()
         self.face_engine = FaceRecognitionEngine()
+        # In-memory cache of (student_id, name, roll_number, embedding)
+        self._embedding_cache: Optional[List[Tuple[int, str, str, object]]] = None
     
     def add_student_with_photos(self, name: str, roll_number: str, email: str, 
                               phone: str, course: str, images: List, 
@@ -133,6 +140,8 @@ class StudentService:
             
             if success:
                 logger.info(f"Student {name} added with {successful_embeddings} face embeddings")
+                # Invalidate and rebuild embedding cache after successful registration
+                self._refresh_embedding_cache(force_refresh=True)
                 return True, f"Student {name} added successfully with {successful_embeddings} face photos"
             else:
                 return False, message
@@ -249,14 +258,48 @@ class StudentService:
     
     def delete_student(self, student_id: int) -> Tuple[bool, str]:
         """Delete student"""
-        return self.student_repo.delete_student(student_id)
+        success, message = self.student_repo.delete_student(student_id)
+        if success:
+            # Invalidate cache so deleted embeddings are not used
+            self._refresh_embedding_cache(force_refresh=True)
+        return success, message
+
+    # -------- Embedding cache helpers --------
+    def _refresh_embedding_cache(self, force_refresh: bool = False) -> List[Tuple[int, str, str, object]]:
+        """
+        Load embeddings from cache or rebuild from database.
+
+        Returns a list of (student_id, name, roll_number, embedding).
+        """
+        if not force_refresh and self._embedding_cache is not None:
+            return self._embedding_cache
+
+        # Try disk cache first
+        cached = None if force_refresh else load_embeddings_cache()
+        if cached:
+            self._embedding_cache = cached
+            logger.info(f"Loaded {len(cached)} embeddings from cache")
+            return self._embedding_cache
+
+        # Fallback: build from database
+        student_embeddings = self.student_repo.get_student_embeddings()
+        if student_embeddings:
+            save_embeddings_cache(student_embeddings)
+            logger.info(f"Built embedding cache with {len(student_embeddings)} entries")
+            self._embedding_cache = student_embeddings
+        else:
+            # No embeddings; clear any stale cache on disk
+            clear_embeddings_cache()
+            self._embedding_cache = []
+
+        return self._embedding_cache
     
     def recognize_student(self, image) -> Tuple[bool, Optional[Dict], float]:
         """Recognize student from image"""
         try:
-            # Get all student embeddings
-            student_embeddings = self.student_repo.get_student_embeddings()
-            
+            # Get cached embeddings (built from DB if needed)
+            student_embeddings = self._refresh_embedding_cache()
+
             if not student_embeddings:
                 return False, None, 0.0
             

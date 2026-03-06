@@ -1,6 +1,5 @@
 """
 Image conversion utilities
-Fix image format issues for face recognition
 """
 import numpy as np
 import cv2

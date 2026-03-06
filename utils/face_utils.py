@@ -13,7 +13,7 @@ from datetime import datetime
 import tempfile
 
 from utils.constants import ALLOWED_IMAGE_EXTENSIONS, ALLOWED_IMAGE_MIMES
-from utils.helpers import clean_filename, generate_unique_id
+from utils.helperrs import clean_filename, generate_unique_id
 
 logger = logging.getLogger(__name__)
 

@@ -226,8 +226,9 @@ def create_default_admin():
                 logger.info("✅ hash_password imported from auth.auth")
             except ImportError:
                 try:
-                    from utils.helpers import hash_password
-                    logger.info("✅ hash_password imported from utils.helpers")
+                    # helpers module is named helperrs.py in this project
+                    from utils.helperrs import hash_string as hash_password
+                    logger.info("✅ hash_password imported from utils.helperrs.hash_string")
                 except ImportError:
                     logger.error(f"❌ Could not import hash_password function: {e}")
                     return False

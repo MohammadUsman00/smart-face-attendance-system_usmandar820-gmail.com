@@ -19,7 +19,8 @@ Designed for universities, enterprises, and organizations, it ensures:
 - Strong security features  
 - Real-time data insights and analytics  
 
-This project provides a modern alternative to traditional biometric and manual attendance systems.  
+This project provides a modern alterna
+tive to traditional biometric and manual attendance systems.  
 
 ---
 
