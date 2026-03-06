@@ -10,6 +10,8 @@ import time
 import logging
 from typing import List, Dict, Optional
 
+from ui.components.layout import render_page_header, section_title, card_container
+
 logger = logging.getLogger(__name__)
 
 class StudentManagementPage:
@@ -24,15 +26,21 @@ class StudentManagementPage:
     
     def render(self):
         """Render student management page"""
-        st.markdown("## 👥 Student Management")
-        
+        render_page_header(
+            title="Student Management",
+            subtitle="Register new students, manage profiles and maintain clean face datasets.",
+            icon="👥",
+        )
+
         tab1, tab2 = st.tabs(["➕ Add Student", "📋 Manage Students"])
         
         with tab1:
-            self._render_add_student_tab()
+            with card_container():
+                self._render_add_student_tab()
         
         with tab2:
-            self._render_manage_students_tab()
+            with card_container():
+                self._render_manage_students_tab()
     
     def _render_add_student_tab(self):
         """Render add student tab with proper form clearing"""

@@ -10,6 +10,7 @@ from datetime import date, datetime
 from typing import Optional, Dict, Tuple
 from services.attendance_service import AttendanceService
 from ui.components.forms import AttendanceForm
+from ui.components.layout import render_page_header, section_title, card_container
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,11 @@ class AttendancePage:
     
     def render(self):
         """Render attendance marking page"""
-        st.markdown("## 📷 Smart Attendance System")
-        st.markdown("**Dual Mode Tracking: Entry & Exit**")
+        render_page_header(
+            title="Live Face Attendance",
+            subtitle="Use the camera or upload a photo to mark IN/OUT attendance in real time.",
+            icon="📷",
+        )
         
         # Add debug mode toggle
         debug_mode = st.checkbox("🔍 Enable Recognition Debug Mode", 
@@ -34,10 +38,14 @@ class AttendancePage:
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            self._render_camera_section(debug_mode)
+            with card_container():
+                section_title("Camera & Upload", icon="🎥")
+                self._render_camera_section(debug_mode)
         
         with col2:
-            self._render_summary_section()
+            with card_container():
+                section_title("Today's Summary", icon="📊")
+                self._render_summary_section()
     
     def _render_instructions(self):
         """Render usage instructions"""

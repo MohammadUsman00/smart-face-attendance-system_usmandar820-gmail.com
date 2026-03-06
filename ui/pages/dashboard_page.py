@@ -14,6 +14,7 @@ from services.student_service import StudentService
 from ui.pages.student_management import StudentManagementPage
 from ui.pages.attendance_page import AttendancePage
 from ui.pages.analytics_page import AnalyticsPage
+from ui.components.layout import render_page_header, render_kpi_row, section_title
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,11 @@ class DashboardPage:
     
     def _render_admin_dashboard(self, user: Dict):
         """Render admin dashboard"""
-        st.title("📊 Admin Dashboard")
+        render_page_header(
+            title="Admin Dashboard",
+            subtitle="Realtime overview of students, attendance and system activity.",
+            icon="📊",
+        )
         
         # Sidebar navigation
         self._render_admin_sidebar(user)
@@ -91,7 +96,11 @@ class DashboardPage:
     
     def _render_user_dashboard(self, user: Dict):
         """Render user/student dashboard"""
-        st.title("🎓 Student Dashboard")
+        render_page_header(
+            title="Student Dashboard",
+            subtitle="Quick overview of your institution's attendance status.",
+            icon="🎓",
+        )
         
         # Sidebar navigation
         self._render_user_sidebar(user)
@@ -171,27 +180,32 @@ class DashboardPage:
     
     def _render_dashboard_overview(self):
         """Render dashboard overview with safe error handling"""
-        st.markdown("## 📈 Dashboard Overview")
-        
         try:
             # Get today's stats with safe error handling
             stats = self._get_safe_attendance_stats()
             
-            # Key metrics
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("👥 Total Students", stats.get('total_students', 0))
-            
-            with col2:
-                st.metric("✅ Present Today", stats.get('present_today', 0))
-            
-            with col3:
-                st.metric("❌ Absent Today", stats.get('absent_today', 0))
-            
-            with col4:
-                attendance_rate = stats.get('attendance_rate', 0)
-                st.metric("📊 Attendance Rate", f"{attendance_rate:.1f}%")
+            attendance_rate = stats.get('attendance_rate', 0)
+
+            # Key metrics row
+            kpis = [
+                {
+                    "label": "👥 Total Students",
+                    "value": stats.get("total_students", 0),
+                },
+                {
+                    "label": "✅ Present Today",
+                    "value": stats.get("present_today", 0),
+                },
+                {
+                    "label": "❌ Absent Today",
+                    "value": stats.get("absent_today", 0),
+                },
+                {
+                    "label": "📊 Attendance Rate",
+                    "value": f"{attendance_rate:.1f}%",
+                },
+            ]
+            render_kpi_row(kpis)
             
             # Weekly trend if available
             weekly_rate = stats.get('avg_weekly_rate', 0)
@@ -210,15 +224,15 @@ class DashboardPage:
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("### 📅 Today's Attendance")
+                section_title("Today's Attendance", icon="📅")
                 self._render_safe_attendance_records()
             
             with col2:
-                st.markdown("### 🎯 Quick Actions")
+                section_title("Quick Actions", icon="🎯")
                 self._render_quick_actions()
                 
                 # System status
-                st.markdown("### 📊 System Status")
+                section_title("System Status", icon="📊")
                 self._render_system_status()
                 
         except Exception as e:
