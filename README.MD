@@ -2,9 +2,9 @@
 
 **An AI-powered attendance management system with enterprise features, dual IN/OUT tracking, multi-photo registration, and advanced analytics.**  
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
-[![DeepFace](https://img.shields.io/badge/DeepFace-0.0.79-green.svg)](https://github.com/serengil/deepface)
+[![DeepFace](https://img.shields.io/badge/DeepFace-0.0.90+-green.svg)](https://github.com/serengil/deepface)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 
@@ -19,8 +19,7 @@ Designed for universities, enterprises, and organizations, it ensures:
 - Strong security features  
 - Real-time data insights and analytics  
 
-This project provides a modern alterna
-tive to traditional biometric and manual attendance systems.  
+This project provides a modern alternative to traditional biometric and manual attendance systems.  
 
 ---
 
@@ -43,24 +42,28 @@ The **Smart Face Attendance System** solves these issues by offering:
 ## Features  
 
 ### Core Functionality  
-- Face Recognition with **ArcFace + RetinaFace**  
+- Face Recognition with **ArcFace + RetinaFace** (configurable thresholds and margin for safer matching)  
 - Multi-Photo Registration (2–5 photos per person)  
 - Dual IN/OUT Tracking for precise logs  
 - Real-Time Processing with millisecond accuracy  
 - Built-in Course & Department Management  
+- Optional **live mask / covering check** (YOLO-World + WebRTC path) when enabled  
 
 ### Authentication & Security  
-- Secure Login with SHA-256 + Salt Encryption  
+- **bcrypt** password hashing with migration from legacy salted SHA-256 where applicable  
 - Role-Based Access (Admin & Student)  
-- Session Security with Auto-Logout & Logging  
-- Token-Based Password Recovery  
+- Session handling with configurable timeouts  
+- Password reset flow with token expiry and rate limiting  
+- Optional **admin TOTP (2FA)** via `ENABLE_ADMIN_2FA`  
+- Audit-friendly security settings (see `.env` / `config/settings.py`)  
 
 ### Analytics & Reporting  
 - Daily, Weekly, and Monthly Trends  
 - Course-Wise Comparisons  
 - Interactive Charts with Plotly  
-- Export Options (CSV, Excel)  
+- Export options including **CSV, Excel, and PDF**  
 - Peak Hour Usage Insights  
+- **System Health** view for operational checks  
 
 ---
 
@@ -132,26 +135,76 @@ The **Smart Face Attendance System** solves these issues by offering:
 
 ## Tech Stack  
 
-| Layer             | Technology        | Purpose                                  |
-| ----------------- | ----------------- | ---------------------------------------- |
-| Frontend          | Streamlit         | Interactive web interface with modern UI |
-| Backend           | Python 3.8+       | Core application logic and APIs          |
-| Database          | SQLite            | Lightweight, ACID-compliant database     |
-| AI/ML             | DeepFace, ArcFace | Face recognition and encoding            |
-| Detection         | RetinaFace        | Robust face detection in images          |
-| Visualization     | Plotly            | Interactive analytics & charts           |
+| Layer             | Technology              | Purpose                                      |
+| ----------------- | ----------------------- | -------------------------------------------- |
+| Frontend          | Streamlit               | Interactive web UI                           |
+| Backend           | Python 3.9+             | Application logic                            |
+| Database          | SQLite                  | Lightweight, file-based storage (`data/`)    |
+| AI / ML           | DeepFace, ArcFace       | Face embeddings and verification             |
+| Detection         | RetinaFace              | Face detection in images                     |
+| Optional vision   | Ultralytics YOLO-World  | Open-vocabulary mask / no-mask cues          |
+| Visualization     | Plotly                  | Analytics charts                             |
+| Reporting         | fpdf2                   | PDF exports                                  |
+| Security          | bcrypt, cryptography    | Password hashing and crypto utilities        |
 
 ---
 
 ## Quick Start  
 
+### 1. Clone and install  
+
 ```bash
-# Clone repository
 git clone https://github.com/MohammadUsman00/smart-face-attendance-system_usmandar820-gmail.com.git
-cd smart-face-attendance
+cd smart-face-attendance-system_usmandar820-gmail.com
 
-# Install dependencies
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+
 pip install -r requirements.txt
+```
 
-# Run the system
+### 2. Configure environment  
+
+Create a `.env` file in the project root (not committed; see `config/settings.py` for variable names) and set at least:
+
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` — first admin bootstrap (see migration / `ensure_admin_exists`)  
+- `SECRET_KEY`, `SALT` — use strong values in production  
+- Face recognition keys such as `RECOGNITION_THRESHOLD`, `RECOGNITION_MARGIN`, `MODEL_NAME`, `DETECTOR_BACKEND` as needed  
+
+Configuration is read from **environment variables** (including values loaded by `python-dotenv` from `.env`).
+
+### 3. Run locally  
+
+```bash
 streamlit run main.py
+```
+
+Open the URL shown in the terminal (default **http://localhost:8501**).
+
+### 4. Run with Docker  
+
+From the project root (same folder as `Dockerfile`):
+
+```bash
+docker compose up --build
+```
+
+To pass your local `.env` into the Compose service, add `env_file: [.env]` under `smart-attendance` in `docker-compose.yml` after creating `.env`.
+
+Or with plain Docker:
+
+```bash
+docker build -t smart-face-attendance .
+docker run -p 8501:8501 -v "%cd%/data:/app/data" -v "%cd%/logs:/app/logs" --env-file .env smart-face-attendance
+```
+
+On **Linux/macOS**, replace the volume paths with `$(pwd)/data` and `$(pwd)/logs`.
+
+`docker-compose.yml` maps **8501**, persists `./data` and `./logs`, and sets `STREAMLIT_SERVER_PORT=8501`. The image starts Streamlit on **0.0.0.0:8501** so the port is reachable from the host.
+
+### 5. Tests  
+
+```bash
+python -m pytest tests/ -q
+```

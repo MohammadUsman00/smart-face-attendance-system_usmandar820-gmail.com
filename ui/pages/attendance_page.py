@@ -2,13 +2,16 @@
 Attendance marking page component - Enhanced with debugging
 Extracted from app.py attendance functionality
 """
+import time
 import streamlit as st
 import cv2
 import numpy as np
 import logging
+from collections import defaultdict
 from datetime import date, datetime
 from typing import Optional, Dict, Tuple
 from services.attendance_service import AttendanceService
+from config.settings import RECOGNITION_THRESHOLD, RECOGNITION_MARGIN
 from ui.components.forms import AttendanceForm
 from ui.components.layout import render_page_header, section_title, card_container
 
@@ -62,6 +65,8 @@ class AttendancePage:
             **System automatically detects:**
             - 🟢 **IN** - When entering college
             - 🔴 **OUT** - When leaving college
+            
+            **Live mask check (WebRTC):** Use sidebar **Live Mask Detection** for a real-time mask preview (separate from attendance marking).
             
             **If recognition fails:**
             - 🔍 Enable debug mode for detailed analysis
@@ -134,7 +139,29 @@ class AttendancePage:
             if debug_mode:
                 st.success(f"✅ Image converted successfully: {processed_image.shape}, dtype: {processed_image.dtype}")
         
-        # Step 2: Process face recognition
+        # Step 2: Block attendance if face covering (mask) is detected
+        with st.spinner("🎭 Checking face covering..."):
+            try:
+                from face_mask.mask_gate import check_face_uncovered_for_attendance
+
+                allowed, mask_msg, mask_detail = check_face_uncovered_for_attendance(processed_image)
+                if not allowed:
+                    st.error("🚫 Attendance blocked")
+                    st.warning(mask_msg)
+                    if debug_mode and mask_detail:
+                        with st.expander("Mask check details", expanded=True):
+                            st.json(mask_detail)
+                    return
+                if debug_mode and mask_detail and not mask_detail.get("skipped"):
+                    st.caption(f"Covering check: {mask_msg}")
+            except Exception as e:
+                logger.error("Mask gate error: %s", e)
+                st.error("Face covering check failed. Please try again or contact an admin.")
+                if debug_mode:
+                    st.exception(e)
+                return
+
+        # Step 3: Process face recognition
         with st.spinner("🔍 Processing face recognition..."):
             try:
                 # Recognize student and mark attendance
@@ -286,7 +313,11 @@ class AttendancePage:
         
         with col_info2:
             confidence = student_info.get('recognition_confidence', 0)
-            st.info(f"📊 Confidence: {confidence:.1%}")
+            st.info(f"📊 Match score: {confidence:.3f}")
+            margin = student_info.get("recognition_margin")
+            runner = student_info.get("runner_up_similarity")
+            if margin is not None and runner is not None:
+                st.caption(f"Margin vs next student: {margin:.3f} (next: {runner:.3f})")
         
         # Attendance status
         st.success(f"✅ {message}")
@@ -314,19 +345,19 @@ class AttendancePage:
             # Quick fix suggestions
             st.markdown("### 🛠️ Quick Fixes")
             
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns(2)
             with col1:
-                if st.button("🔄 Lower Threshold", key="lower_threshold_btn", help="Temporarily lower recognition threshold"):
-                    self._temporarily_lower_threshold()
-            
-            with col2:
                 if st.button("👥 View Students", key="view_students_btn", help="Check registered students"):
                     st.session_state.current_page = "Student Management"
                     st.rerun()
             
-            with col3:
+            with col2:
                 if st.button("📝 Manual Entry", key="manual_entry_btn", help="Mark attendance manually"):
                     self._show_manual_entry_form()
+            st.caption(
+                f"Tuning: set RECOGNITION_THRESHOLD (now {RECOGNITION_THRESHOLD}) and "
+                f"RECOGNITION_MARGIN (now {RECOGNITION_MARGIN}) in your environment or `.env`."
+            )
         else:
             # Standard troubleshooting without debug
             st.info("""
@@ -440,61 +471,64 @@ class AttendancePage:
             
             st.success("✅ Generated embedding for input image")
             
-            # Compare with all students
-            similarities = []
+            # Per-template scores, then aggregate max per student (matches live recognition)
+            by_student = defaultdict(list)
             for student_id, name, roll_number, known_embedding in student_embeddings:
                 try:
                     similarity = face_engine.cosine_similarity(input_embedding, known_embedding)
-                    similarities.append({
-                        'name': name,
-                        'roll_number': roll_number,
-                        'similarity': similarity
-                    })
+                    by_student[student_id].append((name, roll_number, similarity))
                 except Exception as e:
-                    similarities.append({
-                        'name': name,
-                        'roll_number': roll_number,
-                        'similarity': 0.0,
-                        'error': str(e)
-                    })
-            
-            # Sort by similarity
-            similarities.sort(key=lambda x: x['similarity'], reverse=True)
-            
-            # Show top matches
-            st.markdown("**Top 5 Matches:**")
-            
-            for i, match in enumerate(similarities[:5], 1):
-                similarity = match['similarity']
-                name = match['name']
-                roll = match['roll_number']
-                
-                if similarity >= 0.6:
-                    st.success(f"{i}. {name} ({roll}): {similarity:.3f} ✅")
-                elif similarity >= 0.4:
+                    by_student[student_id].append((name, roll_number, 0.0))
+                    logger.warning("Similarity error: %s", e)
+
+            student_best = []
+            for sid, rows in by_student.items():
+                name, roll = rows[0][0], rows[0][1]
+                best_s = max(r[2] for r in rows)
+                student_best.append({"student_id": sid, "name": name, "roll_number": roll, "similarity": best_s})
+
+            student_best.sort(key=lambda x: x["similarity"], reverse=True)
+
+            st.caption(
+                f"Decision uses max similarity per student, threshold ≥ {RECOGNITION_THRESHOLD}, "
+                f"and margin ≥ {RECOGNITION_MARGIN} between best and second student."
+            )
+
+            st.markdown("**Top students (by best template match):**")
+            for i, match in enumerate(student_best[:5], 1):
+                similarity = match["similarity"]
+                name = match["name"]
+                roll = match["roll_number"]
+                if similarity >= RECOGNITION_THRESHOLD:
+                    st.success(f"{i}. {name} ({roll}): {similarity:.3f} ✅ (above threshold)")
+                elif similarity >= RECOGNITION_THRESHOLD * 0.8:
                     st.warning(f"{i}. {name} ({roll}): {similarity:.3f} ⚠️")
                 else:
                     st.error(f"{i}. {name} ({roll}): {similarity:.3f} ❌")
-            
-            # Show threshold info
-            threshold = 0.6  # Default threshold
-            best_match = similarities[0] if similarities else None
-            
-            if best_match and best_match['similarity'] >= threshold:
-                st.info(f"🎯 Best match passes threshold ({threshold})")
-            elif best_match:
-                st.warning(f"🎯 Best match ({best_match['similarity']:.3f}) below threshold ({threshold})")
-                st.info(f"💡 Consider lowering threshold to {best_match['similarity']:.3f}")
+
+            best_match = student_best[0] if student_best else None
+            second_sim = student_best[1]["similarity"] if len(student_best) > 1 else 0.0
+            if best_match:
+                margin_ok = (best_match["similarity"] - second_sim) >= RECOGNITION_MARGIN
+                if len(student_best) > 1:
+                    st.info(
+                        f"Best vs runner-up margin: {best_match['similarity'] - second_sim:.3f} "
+                        f"(need ≥ {RECOGNITION_MARGIN}) — {'OK' if margin_ok else 'too close'}"
+                    )
+                if best_match["similarity"] >= RECOGNITION_THRESHOLD and (
+                    len(student_best) == 1 or margin_ok
+                ):
+                    st.success("🎯 Would accept this image with current settings.")
+                elif best_match["similarity"] < RECOGNITION_THRESHOLD:
+                    st.warning(
+                        f"🎯 Best student below threshold ({RECOGNITION_THRESHOLD}). "
+                        "Improve lighting or alignment."
+                    )
+                else:
+                    st.warning("🎯 Ambiguous: top two students too close in similarity.")
                 
         except Exception as e:
             st.error(f"Comparison analysis error: {e}")
-    
-    def _temporarily_lower_threshold(self):
-        """Temporarily lower recognition threshold"""
-        st.info("🎯 Recognition threshold temporarily lowered to 0.4 for next attempt")
-        st.session_state.temp_lower_threshold = True
-        st.warning("⚠️ This is temporary - restart app to restore normal threshold")
-        st.rerun()
     
     def _show_manual_entry_form(self):
         """Show manual attendance entry form"""

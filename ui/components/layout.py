@@ -5,7 +5,7 @@ These helpers only affect presentation (headers, KPI rows, sections)
 and are safe to use across all pages without changing core logic.
 """
 
-from typing import List, Dict, Optional, Callable
+from typing import List, Dict, Optional, Callable, Tuple
 
 import streamlit as st
 
@@ -72,6 +72,29 @@ def section_title(title: str, description: Optional[str] = None, icon: Optional[
             f"<p style='color: var(--text-muted, #64748b); font-size: 0.9rem;'>{description}</p>",
             unsafe_allow_html=True,
         )
+
+
+def render_info_strip(
+    items: List[Tuple[str, str]],
+) -> None:
+    """
+    Horizontal strip of compact info chips (title + short body).
+    Each item is (title, description).
+    """
+    if not items:
+        return
+    st.markdown('<div class="info-strip">', unsafe_allow_html=True)
+    cols = st.columns(len(items))
+    for col, (title, body) in zip(cols, items):
+        with col:
+            st.markdown(
+                f'<div class="info-chip">'
+                f'<span class="info-chip-title">{title}</span>'
+                f'<p class="info-chip-body">{body}</p>'
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def card_container() -> st.delta_generator.DeltaGenerator:

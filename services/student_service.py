@@ -244,14 +244,6 @@ class StudentService:
                     if face_issue:
                         st.warning(f"   - Face detection: {debug_info.get('face_detection', {}).get('message')}")
 
-    # Add debug mode to existing methods
-    def get_all_students(self) -> List[Dict]:
-        """Get all active students"""
-        return self.student_repo.get_all_students()
-    
-    # ... rest of your existing methods remain the same
-
-    
     def get_all_students(self) -> List[Dict]:
         """Get all active students"""
         return self.student_repo.get_all_students()
@@ -294,30 +286,44 @@ class StudentService:
 
         return self._embedding_cache
     
-    def recognize_student(self, image) -> Tuple[bool, Optional[Dict], float]:
-        """Recognize student from image"""
+    def recognize_student(self, image) -> Tuple[bool, Optional[Dict], float, Dict]:
+        """Recognize student from image. Fourth return value is decision metadata (margin, reason)."""
+        empty_meta = {
+            "reason": "error",
+            "best_similarity": 0.0,
+            "second_similarity": 0.0,
+        }
         try:
-            # Get cached embeddings (built from DB if needed)
             student_embeddings = self._refresh_embedding_cache()
 
             if not student_embeddings:
-                return False, None, 0.0
-            
-            # Use face recognition engine to identify student
-            is_recognized, student_info, confidence = self.face_engine.recognize_face(
+                empty_meta["reason"] = "no_gallery"
+                return False, None, 0.0, empty_meta
+
+            is_recognized, student_info, confidence, meta = self.face_engine.recognize_face(
                 image, student_embeddings
             )
-            
+
             if is_recognized:
-                logger.info(f"Student recognized: {student_info['name']} with confidence {confidence:.3f}")
+                logger.info(
+                    "Student recognized: %s with confidence %.3f",
+                    student_info["name"],
+                    confidence,
+                )
             else:
-                logger.info(f"Student not recognized. Best confidence: {confidence:.3f}")
-            
-            return is_recognized, student_info, confidence
-            
+                logger.info(
+                    "Student not recognized (%s). Best: %.3f",
+                    meta.get("reason"),
+                    confidence,
+                )
+
+            return is_recognized, student_info, confidence, meta
+
         except Exception as e:
             logger.error(f"Error recognizing student: {e}")
-            return False, None, 0.0
+            empty_meta["reason"] = "error"
+            empty_meta["detail"] = str(e)
+            return False, None, 0.0, empty_meta
     
     def get_student_by_id(self, student_id: int) -> Optional[Dict]:
         """Get student details by ID"""

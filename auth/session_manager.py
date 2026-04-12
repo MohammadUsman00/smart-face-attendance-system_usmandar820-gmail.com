@@ -46,14 +46,23 @@ class SessionManager:
         """Logout user and clear session"""
         try:
             user_email = st.session_state.get(self.session_keys['USER_EMAIL'])
-            
+            if user_email:
+                try:
+                    from services.audit_service import log as audit_log
+
+                    audit_log("logout", actor_email=user_email)
+                except Exception:
+                    pass
+
             # Clear all session variables
             for key in self.session_keys.values():
                 st.session_state[key] = None
             
             # Clear additional session variables
             session_vars_to_clear = [
-                'login_time', 'show_signup', 'show_forgot_password'
+                'login_time', 'show_signup', 'show_forgot_password',
+                'reset_token', 'reset_email', 'show_password_reset', 'goto_forgot_password',
+                'login_auth_navigation', 'totp_challenge',
             ]
             
             for var in session_vars_to_clear:

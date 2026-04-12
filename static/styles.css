@@ -492,6 +492,62 @@
     border-color: var(--neutral-500) !important;
 }
 
+/* ===== INFO STRIP (feature chips) ===== */
+.info-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0.5rem 0 1.25rem 0;
+}
+
+.info-chip {
+    background: var(--bg-secondary);
+    border: 1px solid var(--neutral-300);
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    box-shadow: var(--shadow-sm);
+    min-height: 4.5rem;
+}
+
+.info-chip-title {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--primary-blue);
+    margin-bottom: 0.35rem;
+}
+
+.info-chip-body {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+/* ===== WEBRTC LIVE MASK ===== */
+.webrtc-shell {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--neutral-300);
+    box-shadow: var(--shadow-lg);
+    background: var(--bg-secondary);
+    margin-bottom: 1rem;
+}
+
+.webrtc-shell iframe,
+.webrtc-shell video {
+    border-radius: 12px !important;
+}
+
+/* ===== TABS (cleaner) ===== */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.5rem;
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: 10px 10px 0 0 !important;
+}
+
 /* ===== SMOOTH THEME TRANSITION ===== */
 * {
     transition: background-color var(--transition-normal), 

@@ -5,12 +5,20 @@ Extracted from face_utils.py recognition functions with better error handling
 import numpy as np
 import cv2
 import logging
-from typing import Tuple, Optional, List
+from collections import defaultdict
+from typing import Tuple, Optional, List, Dict, Any
 from deepface import DeepFace
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress TensorFlow warnings
 
-from config.settings import MODEL_NAME, DETECTOR_BACKEND, EMBEDDING_SIZE, RECOGNITION_THRESHOLD
+from config.settings import (
+    MODEL_NAME,
+    DETECTOR_BACKEND,
+    EMBEDDING_SIZE,
+    RECOGNITION_THRESHOLD,
+    RECOGNITION_MARGIN,
+    ALLOW_SKIP_DETECTION_FALLBACK,
+)
 from face_recognition.image_utils import (
     ensure_rgb, resize_embedding_to_512, validate_image_quality,
     detect_face_in_image, preprocess_image_for_embedding
@@ -26,6 +34,8 @@ class FaceRecognitionEngine:
         self.detector_backend = DETECTOR_BACKEND
         self.embedding_size = EMBEDDING_SIZE
         self.recognition_threshold = RECOGNITION_THRESHOLD
+        self.recognition_margin = RECOGNITION_MARGIN
+        self.allow_skip_detection_fallback = ALLOW_SKIP_DETECTION_FALLBACK
         
         # Try to initialize models
         self._initialize_models()
@@ -119,25 +129,26 @@ class FaceRecognitionEngine:
             if debug_mode:
                 logger.warning(f"Approach 1 failed: {e}")
         
-        # Approach 2: Skip face detection (use whole image)
-        try:
-            if debug_mode:
-                logger.info("Trying approach 2: Skip detection (whole image)")
-            
-            rgb_image = ensure_rgb(image)
-            
-            embedding_result = DeepFace.represent(
-                img_path=rgb_image,
-                model_name=self.model_name,
-                detector_backend='skip',
-                enforce_detection=False
-            )
-            
-            return self._extract_embedding_from_result(embedding_result)
-            
-        except Exception as e:
-            if debug_mode:
-                logger.warning(f"Approach 2 failed: {e}")
+        # Approach 2: Skip face detection (whole image) — optional; unsafe for attendance accuracy
+        if self.allow_skip_detection_fallback:
+            try:
+                if debug_mode:
+                    logger.info("Trying approach 2: Skip detection (whole image)")
+                
+                rgb_image = ensure_rgb(image)
+                
+                embedding_result = DeepFace.represent(
+                    img_path=rgb_image,
+                    model_name=self.model_name,
+                    detector_backend='skip',
+                    enforce_detection=False
+                )
+                
+                return self._extract_embedding_from_result(embedding_result)
+                
+            except Exception as e:
+                if debug_mode:
+                    logger.warning(f"Approach 2 failed: {e}")
         
         # Approach 3: Try with OpenCV face detection + crop
         try:
@@ -243,45 +254,89 @@ class FaceRecognitionEngine:
             logger.error(f"Error calculating Euclidean distance: {e}")
             return float('inf')
     
-    def recognize_face(self, input_image, known_embeddings: List[Tuple], debug_mode: bool = False) -> Tuple[bool, Optional[dict], float]:
-        """Recognize face in input image against known embeddings"""
+    def recognize_face(
+        self,
+        input_image,
+        known_embeddings: List[Tuple],
+        debug_mode: bool = False,
+    ) -> Tuple[bool, Optional[dict], float, Dict[str, Any]]:
+        """
+        Recognize face using per-student max similarity over gallery embeddings, then:
+        - require similarity >= RECOGNITION_THRESHOLD
+        - if 2+ students: require (best - second_best) >= RECOGNITION_MARGIN
+        """
+        meta: Dict[str, Any] = {
+            "reason": "error",
+            "best_similarity": 0.0,
+            "second_similarity": 0.0,
+            "threshold": self.recognition_threshold,
+            "required_margin": self.recognition_margin,
+        }
         try:
-            # Generate embedding for input image
             input_embedding = self.generate_embedding(input_image, debug_mode)
             if input_embedding is None:
-                return False, None, 0.0
-            
-            best_similarity = 0.0
-            best_match = None
-            
-            # Compare with all known embeddings
+                meta["reason"] = "embedding_failed"
+                meta["detail"] = "Could not extract a face embedding. Check lighting and face visibility."
+                return False, None, 0.0, meta
+
+            # Group embeddings by student; score each student by max similarity to any template
+            by_student = defaultdict(list)
             for student_id, name, roll_number, known_embedding in known_embeddings:
-                try:
-                    similarity = self.cosine_similarity(input_embedding, known_embedding)
-                    
-                    if similarity > best_similarity:
-                        best_similarity = similarity
-                        best_match = {
-                            'student_id': student_id,
-                            'name': name,
-                            'roll_number': roll_number
-                        }
-                        
-                except Exception as e:
-                    logger.warning(f"Error comparing with student {name}: {e}")
-                    continue
-            
-            # Check if best match meets threshold
-            if best_similarity >= self.recognition_threshold:
-                logger.info(f"Face recognized: {best_match['name']} (confidence: {best_similarity:.3f})")
-                return True, best_match, best_similarity
-            else:
-                logger.info(f"No match found. Best similarity: {best_similarity:.3f}")
-                return False, None, best_similarity
-                
+                by_student[student_id].append((name, roll_number, known_embedding))
+
+            student_scores: List[Tuple[float, int, str, str]] = []
+            for student_id, rows in by_student.items():
+                name0, roll0 = rows[0][0], rows[0][1]
+                best_for_student = 0.0
+                for _n, _r, known_embedding in rows:
+                    try:
+                        sim = self.cosine_similarity(input_embedding, known_embedding)
+                        if sim > best_for_student:
+                            best_for_student = sim
+                    except Exception as e:
+                        logger.warning("Error comparing with student %s: %s", name0, e)
+                student_scores.append((best_for_student, student_id, name0, roll0))
+
+            student_scores.sort(key=lambda x: -x[0])
+            if not student_scores:
+                meta["reason"] = "no_gallery"
+                return False, None, 0.0, meta
+
+            best_sim, best_sid, best_name, best_roll = student_scores[0]
+            second_sim = student_scores[1][0] if len(student_scores) > 1 else 0.0
+            meta["best_similarity"] = float(best_sim)
+            meta["second_similarity"] = float(second_sim)
+
+            if best_sim < self.recognition_threshold:
+                meta["reason"] = "low_confidence"
+                logger.info("No match above threshold. Best similarity: %.3f", best_sim)
+                return False, None, best_sim, meta
+
+            if len(student_scores) > 1 and (best_sim - second_sim) < self.recognition_margin:
+                meta["reason"] = "ambiguous"
+                logger.info(
+                    "Ambiguous match: best=%.3f second=%.3f margin_required=%.3f",
+                    best_sim,
+                    second_sim,
+                    self.recognition_margin,
+                )
+                return False, None, best_sim, meta
+
+            best_match = {
+                "student_id": best_sid,
+                "name": best_name,
+                "roll_number": best_roll,
+            }
+            meta["reason"] = "matched"
+            meta["margin_achieved"] = float(best_sim - second_sim)
+            logger.info("Face recognized: %s (confidence: %.3f)", best_name, best_sim)
+            return True, best_match, best_sim, meta
+
         except Exception as e:
             logger.error(f"Error in face recognition: {e}")
-            return False, None, 0.0
+            meta["reason"] = "error"
+            meta["detail"] = str(e)
+            return False, None, 0.0, meta
     
     def batch_generate_embeddings(self, images: List[np.ndarray], debug_mode: bool = False) -> List[Optional[np.ndarray]]:
         """Generate embeddings for multiple images with progress tracking"""

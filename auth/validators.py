@@ -2,11 +2,16 @@
 Authentication validators
 Extracted from auth.py validation functions
 """
+import os
 import re
 import logging
 from typing import Tuple  # Added missing import
 
-from config.settings import MIN_PASSWORD_LENGTH, EMAIL_PATTERN
+try:
+    MIN_PASSWORD_LENGTH = int(os.getenv("MIN_PASSWORD_LENGTH", "6"))
+except ValueError:
+    MIN_PASSWORD_LENGTH = 6
+EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
 logger = logging.getLogger(__name__)
 

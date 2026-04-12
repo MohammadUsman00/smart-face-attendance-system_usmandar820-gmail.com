@@ -78,6 +78,10 @@ class DashboardPage:
         elif current_page == "Mark Attendance":
             attendance_page = AttendancePage()
             attendance_page.render()
+        elif current_page == "Live Mask Detection":
+            from ui.pages.live_mask_page import LiveMaskPage
+
+            LiveMaskPage().render()
         elif current_page == "Attendance Records":
             self._render_attendance_records()
         elif current_page == "Analytics":
@@ -89,6 +93,10 @@ class DashboardPage:
                 logger.error(f"Analytics error: {e}")
                 st.error(f"❌ Analytics error: {str(e)}")
                 st.info("💡 Try refreshing the page or check if students are registered")
+        elif current_page == "System Health":
+            from ui.pages.health_page import HealthPage
+
+            HealthPage().render()
         elif current_page == "User Management":
             self._render_user_management()
         elif current_page == "Danger Zone":
@@ -113,6 +121,10 @@ class DashboardPage:
         elif current_page == "Mark Attendance":
             attendance_page = AttendancePage()
             attendance_page.render()
+        elif current_page == "Live Mask Detection":
+            from ui.pages.live_mask_page import LiveMaskPage
+
+            LiveMaskPage().render()
     
     def _render_admin_sidebar(self, user: Dict):
         """Render admin sidebar navigation"""
@@ -124,8 +136,10 @@ class DashboardPage:
                 ("📈 Dashboard Overview", "Dashboard Overview", "admin_nav_dashboard"),
                 ("👥 Student Management", "Student Management", "admin_nav_students"),
                 ("📷 Mark Attendance", "Mark Attendance", "admin_nav_attendance"),
+                ("🎥 Live Mask Detection", "Live Mask Detection", "admin_nav_mask"),
                 ("📝 Attendance Records", "Attendance Records", "admin_nav_records"),
                 ("📊 Analytics", "Analytics", "admin_nav_analytics"),
+                ("🩺 System Health", "System Health", "admin_nav_health"),
                 ("👤 User Management", "User Management", "admin_nav_users"),
                 ("⚠️ Danger Zone", "Danger Zone", "admin_nav_danger")
             ]
@@ -145,7 +159,8 @@ class DashboardPage:
             
             nav_buttons = [
                 ("📈 My Dashboard", "User Dashboard", "user_nav_dashboard"),
-                ("📷 Mark Attendance", "Mark Attendance", "user_nav_attendance")
+                ("📷 Mark Attendance", "Mark Attendance", "user_nav_attendance"),
+                ("🎥 Live Mask Detection", "Live Mask Detection", "user_nav_mask"),
             ]
             
             for button_text, page_name, key in nav_buttons:
@@ -405,17 +420,38 @@ class DashboardPage:
         if st.button("📊 View Analytics", use_container_width=True, key="dashboard_view_analytics"):
             st.session_state.current_page = "Analytics"
             st.rerun()
+
+        if st.button("🎥 Live Mask Check", use_container_width=True, key="dashboard_live_mask"):
+            st.session_state.current_page = "Live Mask Detection"
+            st.rerun()
+
+        if st.button("🩺 System health", use_container_width=True, key="dashboard_health"):
+            st.session_state.current_page = "System Health"
+            st.rerun()
     
     def _render_system_status(self):
         """Render system status information"""
         try:
+            from config.settings import get_config_value, DB_FILE
+
+            smtp_on = str(get_config_value("SMTP_ENABLED", "false")).lower() in (
+                "1", "true", "yes", "on",
+            )
+            st.caption(f"**Database:** `{DB_FILE}`")
+            st.caption(
+                "**Email (password reset):** "
+                + ("configured (SMTP enabled)" if smtp_on else "in-app token only — set `SMTP_ENABLED=true` in `.env` to send mail")
+            )
+
             if self.student_service:
                 student_stats = self.student_service.get_student_statistics()
                 
-                st.metric("📚 Courses", len(student_stats.get('by_course', {})))
-                st.metric("📸 With Photos", student_stats.get('with_photos', 0))
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.metric("Courses", len(student_stats.get('by_course', {})))
+                with c2:
+                    st.metric("Students with photos", student_stats.get('with_photos', 0))
             else:
-                # Fallback system status
                 from database.connection import get_db_connection
                 
                 with get_db_connection() as conn:
@@ -427,12 +463,15 @@ class DashboardPage:
                     cursor.execute("SELECT COUNT(DISTINCT student_id) FROM face_embeddings")
                     photo_count = cursor.fetchone()[0]
                     
-                    st.metric("📚 Courses", course_count)
-                    st.metric("📸 With Photos", photo_count)
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.metric("Courses", course_count)
+                    with c2:
+                        st.metric("Students with photos", photo_count)
                     
         except Exception as e:
             logger.error(f"Error rendering system status: {e}")
-            st.warning("⚠️ System status unavailable")
+            st.warning("System status unavailable")
     
     def _render_user_dashboard_content(self):
         """Render user dashboard content"""
@@ -669,7 +708,16 @@ class DashboardPage:
                             cursor.execute("DELETE FROM attendance")
                             cursor.execute("DELETE FROM students")
                             conn.commit()
-                        
+                        try:
+                            from services.audit_service import log as audit_log
+                            actor = self.session_manager.get_current_user()
+                            audit_log(
+                                "danger_delete_all_student_data",
+                                actor_email=(actor or {}).get("email"),
+                                detail={"tables": ["face_embeddings", "attendance", "students"]},
+                            )
+                        except Exception:
+                            pass
                         st.success("✅ All data deleted successfully")
                         st.session_state.confirm_delete_all = None
                     except Exception as e:

@@ -3,11 +3,34 @@ User data repository
 Extracted from auth.py user-related functions
 """
 import logging
-from typing import List, Dict, Optional, Tuple  # Added missing imports
-from datetime import datetime, timedelta
+from typing import List, Dict, Optional, Tuple, Any  # Added missing imports
+from datetime import datetime
 from database.connection import get_db_connection
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_reset_expires(value: Any) -> Optional[datetime]:
+    """Parse reset_token_expires from SQLite (string or datetime)."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    s = str(value).strip()
+    if not s:
+        return None
+    for candidate in (s, s.replace("Z", "+00:00"), s.replace(" ", "T", 1)):
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            continue
+    for fmt, n in (("%Y-%m-%d %H:%M:%S.%f", 26), ("%Y-%m-%d %H:%M:%S", 19), ("%Y-%m-%d", 10)):
+        try:
+            return datetime.strptime(s[:n], fmt)
+        except ValueError:
+            continue
+    logger.warning("Could not parse reset_token_expires: %s", value)
+    return None
 
 class UserRepository:
     """Handle all user-related database operations"""
@@ -44,21 +67,29 @@ class UserRepository:
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute('''
-                    SELECT id, username, email, password_hash, role, created_at, last_login
+                cursor.execute(
+                    """
+                    SELECT id, username, email, password_hash, role, created_at, last_login,
+                           totp_secret, totp_enabled
                     FROM users WHERE email = ?
-                ''', (email,))
-                
+                    """,
+                    (email,),
+                )
+
                 row = cursor.fetchone()
                 if row:
                     return {
-                        'id': row['id'],
-                        'username': row['username'],
-                        'email': row['email'],
-                        'password_hash': row['password_hash'],
-                        'role': row['role'],
-                        'created_at': row['created_at'],
-                        'last_login': row['last_login']
+                        "id": row["id"],
+                        "username": row["username"],
+                        "email": row["email"],
+                        "password_hash": row["password_hash"],
+                        "role": row["role"],
+                        "created_at": row["created_at"],
+                        "last_login": row["last_login"],
+                        "totp_secret": row["totp_secret"],
+                        "totp_enabled": bool(row["totp_enabled"])
+                        if row["totp_enabled"] is not None
+                        else False,
                     }
                 return None
                 
@@ -80,7 +111,35 @@ class UserRepository:
         except Exception as e:
             logger.error(f"Error updating last login: {e}")
             return False
-    
+
+    def set_totp_secret(self, email: str, secret: str) -> bool:
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE users SET totp_secret = ? WHERE email = ?",
+                    (secret, email.lower()),
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error("set_totp_secret: %s", e)
+            return False
+
+    def set_totp_enabled(self, email: str, enabled: bool) -> bool:
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE users SET totp_enabled = ? WHERE email = ?",
+                    (1 if enabled else 0, email.lower()),
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error("set_totp_enabled: %s", e)
+            return False
+
     def get_all_users(self) -> List[Dict]:
         """Get all users"""
         try:
@@ -139,15 +198,16 @@ class UserRepository:
             return False, f"Error deleting user: {str(e)}"
     
     def store_reset_token(self, email: str, token: str, expires: datetime) -> bool:
-        """Store password reset token"""
+        """Store password reset token (expires stored as ISO string for SQLite consistency)."""
         try:
+            expires_val = expires.isoformat(timespec="seconds") if isinstance(expires, datetime) else expires
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
                     UPDATE users 
                     SET reset_token = ?, reset_token_expires = ?
                     WHERE email = ?
-                ''', (token, expires, email))
+                ''', (token, expires_val, email))
                 conn.commit()
                 return cursor.rowcount > 0
                 
@@ -158,6 +218,9 @@ class UserRepository:
     def verify_reset_token(self, email: str, token: str) -> bool:
         """Verify password reset token"""
         try:
+            if not token or not email:
+                return False
+            token_clean = token.strip()
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
@@ -169,12 +232,18 @@ class UserRepository:
                 if not result:
                     return False
                 
-                stored_token = result['reset_token']
-                expires = datetime.fromisoformat(result['reset_token_expires']) if result['reset_token_expires'] else None
-                
-                if stored_token == token and expires and expires > datetime.now():
+                stored_token = (result['reset_token'] or '').strip()
+                expires = _parse_reset_expires(result['reset_token_expires'])
+                if expires and expires.tzinfo is not None:
+                    expires = expires.astimezone().replace(tzinfo=None)
+                if stored_token == token_clean and expires and expires > datetime.now():
                     return True
-                
+                if stored_token != token_clean:
+                    logger.warning("Reset token mismatch for %s", email)
+                elif not expires:
+                    logger.warning("Missing or invalid reset expiry for %s", email)
+                else:
+                    logger.warning("Reset token expired for %s", email)
                 return False
                 
         except Exception as e:

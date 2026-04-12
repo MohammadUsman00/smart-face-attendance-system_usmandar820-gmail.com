@@ -64,8 +64,8 @@ Smart Attendance System Team
             
             msg.attach(MIMEText(body, 'plain'))
             
-            # Send email
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            # Send email (timeout avoids hanging UI)
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=25)
             if self.smtp_use_tls:
                 server.starttls()
             

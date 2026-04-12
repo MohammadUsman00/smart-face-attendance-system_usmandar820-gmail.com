@@ -24,12 +24,16 @@ class LoginForm:
             with col2:
                 forgot_clicked = st.form_submit_button("🔑 Forgot Password", use_container_width=True)
         
-        if login_clicked and email and password:
-            return email, password, True
-        elif forgot_clicked:
-            st.session_state.show_forgot_password = True
+        if forgot_clicked:
+            st.session_state.goto_forgot_password = True
             st.rerun()
-        
+
+        if login_clicked and email and password:
+            return email.strip(), password, True
+
+        if login_clicked and (not email or not password):
+            st.warning("Enter email and password to sign in.")
+
         return None, None, False
 
 class SignupForm:
@@ -154,9 +158,12 @@ class AttendanceForm:
     def render_camera_input() -> Optional[Any]:
         """Render camera input for attendance"""
         st.subheader("📷 Mark Attendance")
-        
+        st.caption(
+            "YOLO checks the captured photo for a face mask. Remove your mask before taking the picture — masked faces are blocked."
+        )
+
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
             camera_input = st.camera_input("Take a photo to mark attendance")
         

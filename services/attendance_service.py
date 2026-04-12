@@ -3,7 +3,7 @@ Attendance management business logic
 Extracted from db.py attendance functions
 """
 import logging
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 from datetime import date, datetime, timedelta
 from database.attendance_repository import AttendanceRepository
 from services.student_service import StudentService
@@ -17,25 +17,53 @@ class AttendanceService:
         self.attendance_repo = AttendanceRepository()
         self.student_service = StudentService()
     
+    def _recognition_failure_message(self, meta: Dict[str, Any], confidence: float) -> str:
+        """Human-readable message from recognition metadata."""
+        reason = meta.get("reason", "unknown")
+        th = meta.get("threshold", 0.0)
+        req_m = meta.get("required_margin", 0.0)
+        sec = meta.get("second_similarity", 0.0)
+
+        if reason == "no_gallery":
+            return "No enrolled faces found. Register students before marking attendance."
+        if reason == "ambiguous":
+            return (
+                f"Match too close to another person (ambiguous). "
+                f"Best similarity {confidence:.2f}, next {sec:.2f}; "
+                f"need margin ≥ {req_m:.2f}. Use clearer lighting and face the camera."
+            )
+        if reason == "low_confidence":
+            return (
+                f"No confident match. Best similarity {confidence:.2f} is below threshold {th:.2f}. "
+                "Try better lighting or a similar angle to registration photos."
+            )
+        if reason == "embedding_failed":
+            return meta.get(
+                "detail",
+                "Could not extract a face embedding. Ensure your face is visible and well lit.",
+            )
+        if reason == "error":
+            return meta.get("detail", f"Recognition error. Best similarity: {confidence:.2f}")
+        return f"Face not recognized ({reason}). Best similarity: {confidence:.2f}"
+
     def mark_attendance_by_recognition(self, image, marked_by: str = 'system') -> Tuple[bool, str, Optional[Dict]]:
         """Mark attendance using face recognition"""
         try:
-            # Recognize student from image
-            is_recognized, student_info, confidence = self.student_service.recognize_student(image)
-            
+            is_recognized, student_info, confidence, meta = self.student_service.recognize_student(image)
+
             if not is_recognized:
-                return False, f"Face not recognized. Confidence: {confidence:.2f}", None
-            
-            # Mark attendance
+                return False, self._recognition_failure_message(meta, confidence), None
+
             success, message = self.attendance_repo.mark_attendance(
                 student_info['student_id'], 'present', marked_by
             )
-            
-            # Add confidence to student info
+
             student_info['recognition_confidence'] = confidence
-            
+            student_info['recognition_margin'] = meta.get('margin_achieved')
+            student_info['runner_up_similarity'] = meta.get('second_similarity')
+
             return success, message, student_info
-            
+
         except Exception as e:
             logger.error(f"Error marking attendance by recognition: {e}")
             return False, f"Error marking attendance: {str(e)}", None

@@ -34,7 +34,8 @@ class AnalyticsPage:
         with st.spinner("📈 Generating comprehensive analytics..."):
             analytics_data = self.analytics_service.get_comprehensive_analytics(days_back)
         
-        if not analytics_data or not any(analytics_data.values()):
+        # Empty dict only on total failure; structured data with empty lists is still valid
+        if not analytics_data:
             self._render_no_data_message()
             return
         
@@ -460,7 +461,23 @@ class AnalyticsPage:
         """Render data export section"""
         st.markdown("---")
         st.markdown("### 📥 Export Analytics")
-        
+
+        try:
+            from utils.pdf_report import build_analytics_pdf_summary
+
+            pdf_bytes = build_analytics_pdf_summary(analytics_data)
+            st.download_button(
+                label="📄 Download PDF summary (archive)",
+                data=pdf_bytes,
+                file_name=f"analytics_summary_{date.today()}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                key="export_pdf_summary",
+            )
+        except Exception as e:
+            logger.warning("PDF export unavailable: %s", e)
+            st.caption("Install `fpdf2` for PDF export.")
+
         col1, col2, col3 = st.columns(3)
         
         with col1:

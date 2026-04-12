@@ -35,6 +35,56 @@ def get_db_connection():
         if connection:
             connection.close()
 
+
+def _table_columns(cursor, table: str):
+    cursor.execute(f"PRAGMA table_info({table})")
+    return [row[1] for row in cursor.fetchall()]
+
+
+def _add_user_column_if_missing(cursor, col: str, ddl_suffix: str):
+    cols = _table_columns(cursor, "users")
+    if col not in cols:
+        cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl_suffix}")
+
+
+def _ensure_auxiliary_schema(cursor, conn) -> None:
+    """Audit log, rate limits, optional TOTP columns on users."""
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            actor_email TEXT,
+            action TEXT NOT NULL,
+            target_type TEXT,
+            target_id TEXT,
+            detail TEXT,
+            client_hint TEXT
+        )
+        """
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC)"
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS password_reset_rate (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pwd_reset_email_time ON password_reset_rate(email, created_at)"
+    )
+    try:
+        _add_user_column_if_missing(cursor, "totp_secret", "TEXT")
+        _add_user_column_if_missing(cursor, "totp_enabled", "INTEGER DEFAULT 0")
+    except Exception as e:
+        logger.warning("User table TOTP columns: %s", e)
+
+
 def init_database():
     """Initialize database with all required tables and admin user"""
     try:
@@ -103,12 +153,16 @@ def init_database():
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(student_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
-            
+
+            _ensure_auxiliary_schema(cursor, conn)
+
             conn.commit()
             
             # Create default admin user
             _create_default_admin(cursor, conn)
-            
+            # One-time align legacy seed (old builds used admin@attendance.com) to .env ADMIN_*
+            _migrate_legacy_admin_email_to_env(cursor, conn)
+
             logger.info("Database initialized successfully")
             
     except Exception as e:
@@ -116,27 +170,60 @@ def init_database():
         raise
 
 def _create_default_admin(cursor, conn):
-    """Create default admin user if not exists"""
-    import hashlib
-    from config.settings import SALT
-    
+    """Create default admin if none exists — must match config.settings ADMIN_* (same as migration)."""
     try:
-        # Check if admin exists
         cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
         admin_count = cursor.fetchone()[0]
-        
-        if admin_count == 0:
-            # Create default admin
-            admin_password = "admin123"
-            password_hash = hashlib.sha256((admin_password + SALT).encode()).hexdigest()
-            
-            cursor.execute('''
-                INSERT INTO users (username, email, password_hash, role)
-                VALUES (?, ?, ?, ?)
-            ''', ("admin", "admin@attendance.com", password_hash, "admin"))
-            
-            conn.commit()
-            logger.info("Default admin user created: admin@attendance.com / admin123")
-            
+        if admin_count > 0:
+            return
+
+        from config.settings import ADMIN_EMAIL, ADMIN_PASSWORD
+        from auth.password_hashing import hash_password
+
+        password_hash = hash_password(ADMIN_PASSWORD)
+        cursor.execute(
+            """
+            INSERT INTO users (username, email, password_hash, role)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("admin", ADMIN_EMAIL, password_hash, "admin"),
+        )
+        conn.commit()
+        logger.info("Default admin created for email %s (password from ADMIN_PASSWORD / .env)", ADMIN_EMAIL)
     except Exception as e:
         logger.error(f"Error creating default admin: {e}")
+
+
+# Email used by older versions of _create_default_admin before settings-based seed
+_LEGACY_ADMIN_EMAIL = "admin@attendance.com"
+
+
+def _migrate_legacy_admin_email_to_env(cursor, conn) -> None:
+    """If the only admin still has the legacy email, update to ADMIN_EMAIL / ADMIN_PASSWORD from env."""
+    try:
+        from config.settings import ADMIN_EMAIL, ADMIN_PASSWORD
+        from auth.password_hashing import hash_password
+
+        cursor.execute(
+            "SELECT id, email FROM users WHERE role = 'admin' ORDER BY id"
+        )
+        rows = cursor.fetchall()
+        if len(rows) != 1:
+            return
+        uid = rows[0]["id"]
+        email = rows[0]["email"]
+        if email != _LEGACY_ADMIN_EMAIL:
+            return
+        new_hash = hash_password(ADMIN_PASSWORD)
+        cursor.execute(
+            "UPDATE users SET email = ?, password_hash = ? WHERE id = ?",
+            (ADMIN_EMAIL, new_hash, uid),
+        )
+        conn.commit()
+        logger.info(
+            "Updated legacy admin from %s to %s (password from ADMIN_PASSWORD)",
+            _LEGACY_ADMIN_EMAIL,
+            ADMIN_EMAIL,
+        )
+    except Exception as e:
+        logger.warning("Legacy admin migration skipped: %s", e)

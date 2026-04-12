@@ -234,15 +234,40 @@ def create_default_admin():
                     return False
         
         user_repo = UserRepository()
-        
-        # Check if admin already exists
+
+        # Any admin row means we're done (avoids duplicate username when legacy DB used another email)
         try:
-            existing_admin = user_repo.get_user_by_email(ADMIN_EMAIL)
-            if existing_admin:
-                logger.info(f"ℹ️ Admin user already exists: {ADMIN_EMAIL}")
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT email FROM users WHERE role = 'admin' ORDER BY id LIMIT 1"
+                )
+                row = cur.fetchone()
+            if row:
+                legacy_email = row["email"]
+                if legacy_email == ADMIN_EMAIL:
+                    logger.info("ℹ️ Admin user already exists: %s", ADMIN_EMAIL)
+                else:
+                    logger.warning(
+                        "ℹ️ An admin already exists as %s (not %s). "
+                        "Log in with that email and password you set when it was created, "
+                        "or update the users table email to match ADMIN_EMAIL.",
+                        legacy_email,
+                        ADMIN_EMAIL,
+                    )
                 return True
         except Exception as e:
             logger.error(f"❌ Error checking existing admin: {e}")
+            return False
+
+        # No admin yet — create using configured email
+        try:
+            existing_by_email = user_repo.get_user_by_email(ADMIN_EMAIL)
+            if existing_by_email:
+                logger.info(f"ℹ️ User already exists: {ADMIN_EMAIL}")
+                return True
+        except Exception as e:
+            logger.error(f"❌ Error checking email: {e}")
             return False
         
         # Create admin user
@@ -290,12 +315,12 @@ def create_default_admin():
                         logger.error(f"All creation methods failed. Last error: {e3}")
                         return False
             
-            if admin_created:
+            ok = admin_created[0] if isinstance(admin_created, tuple) else bool(admin_created)
+            if ok:
                 logger.info(f"✅ Default admin created: {ADMIN_EMAIL}")
                 return True
-            else:
-                logger.error("❌ Failed to create admin user - returned False")
-                return False
+            logger.error("❌ Failed to create admin user: %s", admin_created)
+            return False
                 
         except Exception as e:
             logger.error(f"❌ Unexpected error during admin creation: {e}")

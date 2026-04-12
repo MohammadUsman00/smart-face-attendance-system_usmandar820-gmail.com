@@ -54,7 +54,33 @@ class BackupManager:
         except Exception as e:
             logger.error(f"Restore failed: {e}")
             return False
-    
+
+    def list_recent_backups(self, limit: int = 8) -> List[Dict[str, Any]]:
+        """Return newest backup files with size and mtime."""
+        try:
+            if not self.backup_dir.exists():
+                return []
+            files = sorted(
+                self.backup_dir.glob("*.db"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )[:limit]
+            out = []
+            for p in files:
+                st = p.stat()
+                out.append(
+                    {
+                        "name": p.name,
+                        "path": str(p),
+                        "size_mb": round(st.st_size / (1024**2), 2),
+                        "modified": datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds"),
+                    }
+                )
+            return out
+        except Exception as e:
+            logger.error("list_recent_backups: %s", e)
+            return []
+
     def export_data_json(self) -> Dict[str, Any]:
         """Export all data as JSON for migration"""
         try:

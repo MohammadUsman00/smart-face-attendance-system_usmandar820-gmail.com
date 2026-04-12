@@ -1,230 +1,253 @@
 """
-Login page component
-Extracted from app.py login functionality
+Login page component — auth navigation, password reset, and session integration.
 """
 import streamlit as st
 import time
 import logging
 from typing import Optional, Dict, Tuple
+
 from auth.authentication import AuthenticationService
 from auth.session_manager import SessionManager
 from ui.components.forms import LoginForm, SignupForm
-from config.settings import SESSION_KEYS
 from ui.components.theme_toggle import theme_toggle
+
 logger = logging.getLogger(__name__)
+
+AUTH_NAV_KEY = "login_auth_navigation"
+
 
 class LoginPage:
     """Login page component"""
-    
+
     def __init__(self):
         self.auth_service = AuthenticationService()
         self.session_manager = SessionManager()
-    
+
     def render(self):
         """Render complete login page"""
-        # Top utility / theme row
-        top_left, _, top_right = st.columns([6, 2, 2])
+        _, _, top_right = st.columns([6, 2, 2])
         with top_right:
             theme_toggle.render_toggle_button()
 
-        # Hero header section
-        header_col1, header_col2 = st.columns([3, 2])
-        with header_col1:
-            st.title("🎓 Smart Face Attendance System")
-            st.markdown(
-                "#### 🔐 Secure Authentication Portal\n"
-                "Streamlined access for administrators and students with smart face recognition."
-            )
-            st.markdown(
-                "- **Reliable** role‑based access control\n"
-                "- **Fast** onboarding with guided forms\n"
-                "- **Secure** password reset workflow"
-            )
-        with header_col2:
-            with st.container():
-                st.markdown("##### Session Information")
-                st.info(
-                    "Your credentials are encrypted and processed securely.\n\n"
-                    "Use your institutional email to sign in or register."
-                )
+        st.title("Smart Face Attendance")
+        st.caption("Sign in with your registered email, or use Forgot Password if needed.")
 
         st.markdown("---")
 
-        # Auth card
-        st.markdown("### Account Access")
-        
-        # Create tabs for different auth options
-        tab1, tab2, tab3 = st.tabs(["🔑 Login", "👤 Sign Up", "🔒 Forgot Password"])
-        
-        with tab1:
+        if st.session_state.get("totp_challenge"):
+            self._render_totp_challenge()
+            return
+
+        # Prominent password reset step (after user requests token)
+        if st.session_state.get("show_password_reset"):
+            self._render_password_reset_card()
+            st.markdown("---")
+
+        # Navigation: radio allows switching to Forgot Password from LoginForm button
+        options = ["Login", "Sign Up", "Forgot Password"]
+        if AUTH_NAV_KEY not in st.session_state:
+            st.session_state[AUTH_NAV_KEY] = options[0]
+
+        if st.session_state.pop("goto_forgot_password", False):
+            st.session_state[AUTH_NAV_KEY] = "Forgot Password"
+
+        st.markdown("### Account")
+        nav = st.radio(
+            "Choose action",
+            options,
+            horizontal=True,
+            key=AUTH_NAV_KEY,
+            label_visibility="collapsed",
+        )
+
+        if nav == "Login":
             self._render_login_tab()
-        
-        with tab2:
+        elif nav == "Sign Up":
             self._render_signup_tab()
-        
-        with tab3:
+        else:
             self._render_forgot_password_tab()
-        
-        # Handle password reset if token is available
-        if st.session_state.get('show_password_reset', False):
-            self._render_password_reset_form()
-    
+
+    def _render_totp_challenge(self):
+        """Second step: TOTP for admins with 2FA enabled."""
+        ch = st.session_state.get("totp_challenge") or {}
+        em = ch.get("email", "")
+        st.markdown("#### Authenticator code")
+        st.caption(f"Account **{em}** — open your authenticator app and enter the 6-digit code.")
+        with st.form("totp_form"):
+            code = st.text_input("Code", max_chars=8, placeholder="123456")
+            verify = st.form_submit_button("Verify and continue")
+            cancel = st.form_submit_button("Cancel", type="secondary")
+        if cancel:
+            st.session_state.pop("totp_challenge", None)
+            st.rerun()
+        elif verify:
+            if not (code and code.strip()):
+                st.error("Enter the 6-digit code from your app.")
+            else:
+                ok, msg, user_data = self.auth_service.complete_totp_login(em, code.strip())
+                if ok and user_data:
+                    st.session_state.pop("totp_challenge", None)
+                    self.session_manager.login_user(user_data)
+                    st.success("Signed in.")
+                    time.sleep(0.4)
+                    st.rerun()
+                else:
+                    st.error(msg or "Invalid code.")
+
     def _render_login_tab(self):
         """Render login tab"""
-        st.markdown("#### Welcome Back!")
-        
-        # Use form component
+        st.markdown("#### Sign in")
         email, password, submitted = LoginForm.render()
-        
+
         if submitted:
             self._handle_login(email, password)
-        
-        # Demo credentials info
-        st.info("🔑 **Demo Credentials:**\n- Email: enter your email\n- Password: set password in signup")
-    
+
     def _render_signup_tab(self):
         """Render signup tab"""
-        st.markdown("#### Create New Account")
-        
-        # Use form component
+        st.markdown("#### Create account")
         user_data, submitted = SignupForm.render()
-        
+
         if submitted and user_data:
             self._handle_signup(user_data)
-    
+
     def _render_forgot_password_tab(self):
         """Render forgot password tab"""
-        st.markdown("#### Reset Your Password")
+        st.markdown("#### Reset password")
         self._render_forgot_password_form()
-    
+
     def _render_forgot_password_form(self):
-        """Forgot password form"""
-        st.info("💡 Enter your email to receive password reset instructions")
-        
-        with st.form("forgot_password_form"):
-            email = st.text_input("📧 Email Address", placeholder="Enter your registered email")
-            reset_btn = st.form_submit_button("📤 Send Reset Link", use_container_width=True)
-            
-            if reset_btn and email:
-                self._handle_password_reset_request(email)
-    
-    def _render_password_reset_form(self):
-        """Password reset form using token"""
-        st.markdown("---")
-        st.markdown("#### 🔄 Set New Password")
-        
+        """Request reset token"""
+        st.caption("We will email a reset link if SMTP is configured; otherwise a one-time token appears on screen.")
+
+        with st.form("forgot_password_form", clear_on_submit=False):
+            email = st.text_input("Email", placeholder="you@example.com")
+            reset_btn = st.form_submit_button("Send reset instructions", use_container_width=True)
+
+            if reset_btn:
+                if not email or not email.strip():
+                    st.error("Enter your email address.")
+                else:
+                    self._handle_password_reset_request(email.strip())
+
+    def _render_password_reset_card(self):
+        """Password reset form (token + new password) — shown at top when active"""
+        st.markdown("#### Set new password")
         with st.form("password_reset_form"):
-            st.info(f"🔐 Resetting password for: **{st.session_state.get('reset_email', '')}**")
-            
+            st.caption(f"Resetting password for: **{st.session_state.get('reset_email', '')}**")
+
             reset_token = st.text_input(
-                "🎫 Reset Token",
-                value=st.session_state.get('reset_token', ''),
-                help="Paste the reset token from above"
+                "Reset token",
+                value=st.session_state.get("reset_token", ""),
+                help="Paste the token from the message or email",
             )
-            
+
             new_password = st.text_input(
-                "🔒 New Password", 
+                "New password",
                 type="password",
-                placeholder="Enter new password (min 6 characters)"
+                placeholder="Min. 6 characters",
             )
-            
+
             confirm_new_password = st.text_input(
-                "🔒 Confirm New Password", 
+                "Confirm new password",
                 type="password",
-                placeholder="Confirm new password"
             )
-            
+
             col1, col2 = st.columns(2)
             with col1:
-                reset_password_btn = st.form_submit_button("🔄 Reset Password", use_container_width=True)
+                reset_password_btn = st.form_submit_button("Update password", use_container_width=True)
             with col2:
-                cancel_btn = st.form_submit_button("❌ Cancel", use_container_width=True, type="secondary")
-            
+                cancel_btn = st.form_submit_button("Cancel", use_container_width=True, type="secondary")
+
             if reset_password_btn:
                 self._handle_password_reset(reset_token, new_password, confirm_new_password)
-            
+
             if cancel_btn:
                 self._clear_password_reset_session()
                 st.rerun()
-    
+
     def _handle_login(self, email: str, password: str):
         """Handle login submission"""
         if not email or not password:
-            st.error("⚠️ Please fill in all fields")
+            st.error("Enter both email and password.")
             return
-        
-        with st.spinner("🔐 Authenticating..."):
-            success, message, user_data = self.auth_service.login_user(email, password)
-            
+
+        with st.spinner("Signing in…"):
+            success, message, user_data = self.auth_service.login_user(email.strip(), password)
+
             if success and user_data:
-                # Set session
+                if user_data.get("pending_totp"):
+                    st.session_state["totp_challenge"] = {"email": user_data["email"]}
+                    st.rerun()
+                    return
                 self.session_manager.login_user(user_data)
-                st.success("🎉 Login successful!")
-                time.sleep(1)
+                st.success("Signed in successfully.")
+                time.sleep(0.5)
                 st.rerun()
             else:
-                st.error(f"❌ {message}")
-    
+                st.error(message or "Invalid email or password.")
+
     def _handle_signup(self, user_data: Dict):
         """Handle signup submission"""
-        with st.spinner("📝 Creating account..."):
+        with st.spinner("Creating account…"):
             success, message = self.auth_service.signup_user(
-                user_data['username'],
-                user_data['email'],
-                user_data['password']
+                user_data["username"],
+                user_data["email"],
+                user_data["password"],
             )
-            
+
             if success:
-                st.success(f"✅ {message}. You can now login!")
-                st.balloons()
+                st.success(f"{message} You can sign in now.")
             else:
-                st.error(f"❌ {message}")
-    
+                st.error(message)
+
     def _handle_password_reset_request(self, email: str):
         """Handle password reset request"""
-        with st.spinner("📤 Processing reset request..."):
-            success, message, token = self.auth_service.initiate_password_reset(email)
-            
-            if success and token:
-                st.success("✅ Password reset token generated!")
-                st.warning("🔧 **Demo Mode**: Copy this token to reset your password")
-                st.code(f"{token}", language="text")
-                
-                # Store in session for password reset form
-                st.session_state.reset_token = token
-                st.session_state.reset_email = email
-                st.session_state.show_password_reset = True
-            elif success:
-                st.success("✅ If the email exists, reset instructions have been sent")
-            else:
-                st.error(f"❌ {message}")
-    
-    def _handle_password_reset(self, token: str, new_password: str, confirm_password: str):
-        """Handle password reset with token"""
-        if not all([token, new_password, confirm_password]):
-            st.error("⚠️ Please fill in all fields")
-            return
-        
-        if new_password != confirm_password:
-            st.error("❌ Passwords do not match")
-            return
-        
-        email = st.session_state.get('reset_email', '')
-        
-        with st.spinner("🔄 Resetting password..."):
-            success, message = self.auth_service.reset_password(email, token, new_password)
-            
-            if success:
-                st.success("✅ Password reset successful! You can now login.")
-                st.balloons()
-                self._clear_password_reset_session()
-                time.sleep(2)
+        with st.spinner("Processing…"):
+            success, msg, token = self.auth_service.initiate_password_reset(email)
+
+            if not success:
+                st.error(msg)
+                return
+
+            if token:
+                st.success(msg)
+                st.session_state["reset_token"] = token
+                st.session_state["reset_email"] = email.strip().lower()
+                st.session_state["show_password_reset"] = True
+                st.info("Use **Set new password** above with the token you received.")
                 st.rerun()
             else:
-                st.error(f"❌ {message}")
-    
+                # Email not registered (we do not reveal); generic message
+                st.success(msg)
+
+    def _handle_password_reset(self, token: str, new_password: str, confirm_password: str):
+        """Reset password with token"""
+        token = (token or "").strip()
+        if not token or not new_password or not confirm_password:
+            st.error("Fill in token, new password, and confirmation.")
+            return
+
+        if new_password != confirm_password:
+            st.error("Passwords do not match.")
+            return
+
+        email = st.session_state.get("reset_email", "")
+        if not email:
+            st.error("Session lost. Request a new reset from **Forgot Password**.")
+            return
+
+        with st.spinner("Updating password…"):
+            success, message = self.auth_service.reset_password(email, token, new_password)
+
+            if success:
+                st.success("Password updated. You can sign in with your new password.")
+                self._clear_password_reset_session()
+                st.session_state[AUTH_NAV_KEY] = "Login"
+                time.sleep(1.0)
+                st.rerun()
+            else:
+                st.error(message)
+
     def _clear_password_reset_session(self):
-        """Clear password reset session data"""
-        keys_to_clear = ['reset_token', 'reset_email', 'show_password_reset']
-        for key in keys_to_clear:
+        for key in ("reset_token", "reset_email", "show_password_reset"):
             st.session_state.pop(key, None)
