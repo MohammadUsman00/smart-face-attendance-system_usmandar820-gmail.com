@@ -120,9 +120,6 @@ The **Smart Face Attendance System** solves these issues by offering:
   <img src="./assets/Screenshot 2025-09-25 190337.png" width="80%"/>
 </p>
 
-<p align="center">
-  <img src="./assets/Screenshot 2025-09-25 190550.png" width="80%"/>
-</p>
 
 <p align="center">
   <img src="./assets/Screenshot 2025-09-25 190710.png" width="80%"/>
