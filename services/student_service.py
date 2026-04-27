@@ -1,7 +1,6 @@
 """
 Student management business logic - Enhanced with debugging
 """
-import streamlit as st
 import logging
 import uuid
 from typing import List, Dict, Tuple, Optional
@@ -13,7 +12,28 @@ from utils.embeddings import (
     clear_embeddings_cache,
 )
 
+try:
+    import streamlit as st
+except ImportError:
+    st = None
+
 logger = logging.getLogger(__name__)
+
+
+def _audit_biometric(action: str, *, target_id: str = "", detail: Optional[Dict] = None) -> None:
+    """Best-effort audit log for biometric lifecycle events."""
+    try:
+        from services.audit_service import log as audit_log
+
+        audit_log(
+            action,
+            actor_email="system",
+            target_type="student",
+            target_id=target_id or None,
+            detail=detail or {},
+        )
+    except Exception:
+        pass
 
 class StudentService:
     """Enhanced student management with debugging capabilities"""
@@ -140,6 +160,11 @@ class StudentService:
             
             if success:
                 logger.info(f"Student {name} added with {successful_embeddings} face embeddings")
+                _audit_biometric(
+                    "biometric_enrolled",
+                    target_id=roll_number,
+                    detail={"embedding_count": successful_embeddings},
+                )
                 # Invalidate and rebuild embedding cache after successful registration
                 self._refresh_embedding_cache(force_refresh=True)
                 return True, f"Student {name} added successfully with {successful_embeddings} face photos"
@@ -252,7 +277,16 @@ class StudentService:
         """Delete student"""
         success, message = self.student_repo.delete_student(student_id)
         if success:
+            _audit_biometric("biometric_student_deleted", target_id=str(student_id))
             # Invalidate cache so deleted embeddings are not used
+            self._refresh_embedding_cache(force_refresh=True)
+        return success, message
+
+    def delete_student_by_roll(self, roll_number: str) -> Tuple[bool, str]:
+        """Delete student by roll number."""
+        success, message = self.student_repo.delete_student_by_roll(roll_number)
+        if success:
+            _audit_biometric("biometric_student_deleted", target_id=roll_number)
             self._refresh_embedding_cache(force_refresh=True)
         return success, message
 
@@ -381,7 +415,20 @@ class StudentService:
     
     def delete_all_students(self) -> Tuple[bool, str]:
         """Delete all students and their data"""
-        return self.student_repo.delete_all_students()
+        success, message = self.student_repo.delete_all_students()
+        if success:
+            _audit_biometric("biometric_all_students_deleted", detail={"scope": "all_students"})
+            self._embedding_cache = []
+            clear_embeddings_cache()
+        return success, message
+
+    def purge_inactive_biometrics(self) -> Tuple[int, str]:
+        """Purge embeddings for inactive students that are outside retention."""
+        count, message = self.student_repo.purge_inactive_biometrics()
+        if count:
+            _audit_biometric("biometric_retention_purge", detail={"deleted_embeddings": count})
+            self._refresh_embedding_cache(force_refresh=True)
+        return count, message
     
     def get_student_statistics(self) -> Dict:
         """Get student statistics"""

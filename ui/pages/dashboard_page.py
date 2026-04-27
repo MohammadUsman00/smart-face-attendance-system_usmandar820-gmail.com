@@ -7,7 +7,7 @@ import pandas as pd
 import logging
 import time
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from auth.session_manager import SessionManager
 from services.attendance_service import AttendanceService
 from services.student_service import StudentService
@@ -68,7 +68,7 @@ class DashboardPage:
         self._render_admin_sidebar(user)
         
         # Show current page based on session state
-        current_page = st.session_state.get('current_page', 'Dashboard Overview')
+        current_page = st.session_state.get('current_page', 'Mark Attendance')
         
         if current_page == "Dashboard Overview":
             self._render_dashboard_overview()
@@ -114,7 +114,7 @@ class DashboardPage:
         self._render_user_sidebar(user)
         
         # Show current page
-        current_page = st.session_state.get('current_page', 'User Dashboard')
+        current_page = st.session_state.get('current_page', 'Mark Attendance')
         
         if current_page == "User Dashboard":
             self._render_user_dashboard_content()
@@ -129,25 +129,32 @@ class DashboardPage:
     def _render_admin_sidebar(self, user: Dict):
         """Render admin sidebar navigation"""
         with st.sidebar:
-            st.markdown("### 🎯 Admin Control Panel")
+            st.markdown("### 🎯 Attendance Console")
             
-            # Navigation buttons with unique keys
-            nav_buttons = [
-                ("📈 Dashboard Overview", "Dashboard Overview", "admin_nav_dashboard"),
-                ("👥 Student Management", "Student Management", "admin_nav_students"),
+            primary_buttons = [
                 ("📷 Mark Attendance", "Mark Attendance", "admin_nav_attendance"),
-                ("🎥 Live Mask Detection", "Live Mask Detection", "admin_nav_mask"),
+                ("👥 Student Management", "Student Management", "admin_nav_students"),
                 ("📝 Attendance Records", "Attendance Records", "admin_nav_records"),
+            ]
+            insight_buttons = [
+                ("📈 Dashboard Overview", "Dashboard Overview", "admin_nav_dashboard"),
                 ("📊 Analytics", "Analytics", "admin_nav_analytics"),
+            ]
+            admin_buttons = [
                 ("🩺 System Health", "System Health", "admin_nav_health"),
+                ("🎥 Live Mask Detection", "Live Mask Detection", "admin_nav_mask"),
                 ("👤 User Management", "User Management", "admin_nav_users"),
-                ("⚠️ Danger Zone", "Danger Zone", "admin_nav_danger")
+                ("⚠️ Danger Zone", "Danger Zone", "admin_nav_danger"),
             ]
             
-            for button_text, page_name, key in nav_buttons:
-                if st.button(button_text, use_container_width=True, key=key):
-                    st.session_state.current_page = page_name
-                    st.rerun()
+            st.caption("Daily operation")
+            self._render_sidebar_buttons(primary_buttons)
+
+            st.caption("Review and insights")
+            self._render_sidebar_buttons(insight_buttons)
+
+            st.caption("Administration")
+            self._render_sidebar_buttons(admin_buttons)
             
             st.markdown("---")
             self._render_user_info_sidebar(user)
@@ -155,21 +162,28 @@ class DashboardPage:
     def _render_user_sidebar(self, user: Dict):
         """Render user sidebar navigation"""
         with st.sidebar:
-            st.markdown("### 🎯 Student Panel")
+            st.markdown("### 🎯 Attendance Console")
             
             nav_buttons = [
-                ("📈 My Dashboard", "User Dashboard", "user_nav_dashboard"),
                 ("📷 Mark Attendance", "Mark Attendance", "user_nav_attendance"),
+                ("📈 My Dashboard", "User Dashboard", "user_nav_dashboard"),
                 ("🎥 Live Mask Detection", "Live Mask Detection", "user_nav_mask"),
             ]
             
-            for button_text, page_name, key in nav_buttons:
-                if st.button(button_text, use_container_width=True, key=key):
-                    st.session_state.current_page = page_name
-                    st.rerun()
+            self._render_sidebar_buttons(nav_buttons)
             
             st.markdown("---")
             self._render_user_info_sidebar(user)
+
+    def _render_sidebar_buttons(self, buttons: List[Tuple[str, str, str]]) -> None:
+        """Render sidebar navigation buttons with the current page disabled."""
+        current_page = st.session_state.get("current_page", "Mark Attendance")
+        for button_text, page_name, key in buttons:
+            is_current = current_page == page_name
+            label = f"▶ {button_text}" if is_current else button_text
+            if st.button(label, use_container_width=True, key=key, disabled=is_current):
+                st.session_state.current_page = page_name
+                st.rerun()
     
     def _render_user_info_sidebar(self, user: Dict):
         """Render user info and logout button"""
@@ -409,12 +423,16 @@ class DashboardPage:
     
     def _render_quick_actions(self):
         """Render quick action buttons"""
-        if st.button("➕ Add New Student", use_container_width=True, key="dashboard_add_student"):
-            st.session_state.current_page = "Student Management"
+        if st.button("📷 Start Attendance", use_container_width=True, type="primary", key="dashboard_start_attendance"):
+            st.session_state.current_page = "Mark Attendance"
             st.rerun()
         
         if st.button("📝 View All Records", use_container_width=True, key="dashboard_view_records"):
             st.session_state.current_page = "Attendance Records"
+            st.rerun()
+
+        if st.button("➕ Add New Student", use_container_width=True, key="dashboard_add_student"):
+            st.session_state.current_page = "Student Management"
             st.rerun()
         
         if st.button("📊 View Analytics", use_container_width=True, key="dashboard_view_analytics"):
@@ -689,56 +707,179 @@ class DashboardPage:
     def _render_danger_zone(self):
         """Render danger zone page"""
         st.markdown("## ⚠️ Danger Zone")
-        st.error("🚨 **Warning:** These actions are irreversible!")
+        st.error("🚨 **Warning:** These actions are irreversible and require admin re-authentication.")
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown("### 🗑️ Delete All Data")
             st.warning("This will delete ALL students, attendance records, and face data")
-            
-            if st.button("🗑️ Delete All Students", type="secondary"):
-                if st.session_state.get('confirm_delete_all') == 'confirmed':
-                    try:
-                        from database.connection import get_db_connection
-                        
-                        with get_db_connection() as conn:
-                            cursor = conn.cursor()
-                            cursor.execute("DELETE FROM face_embeddings")
-                            cursor.execute("DELETE FROM attendance")
-                            cursor.execute("DELETE FROM students")
-                            conn.commit()
-                        try:
-                            from services.audit_service import log as audit_log
-                            actor = self.session_manager.get_current_user()
-                            audit_log(
-                                "danger_delete_all_student_data",
-                                actor_email=(actor or {}).get("email"),
-                                detail={"tables": ["face_embeddings", "attendance", "students"]},
-                            )
-                        except Exception:
-                            pass
-                        st.success("✅ All data deleted successfully")
-                        st.session_state.confirm_delete_all = None
-                    except Exception as e:
-                        st.error(f"❌ Error deleting data: {str(e)}")
+
+            delete_phrase = st.text_input(
+                "Type DELETE STUDENTS to confirm",
+                key="danger_delete_phrase",
+                placeholder="DELETE STUDENTS",
+            )
+            delete_password = st.text_input(
+                "Admin password",
+                type="password",
+                key="danger_delete_password",
+            )
+
+            if st.button("🗑️ Delete All Students", type="secondary", key="danger_delete_all_students"):
+                authorized, message = self._authorize_danger_action(
+                    delete_password,
+                    delete_phrase,
+                    "DELETE STUDENTS",
+                )
+                if not authorized:
+                    st.error(message)
+                    return
+
+                success, message = self._delete_all_student_data()
+                if success:
+                    st.success(message)
+                    time.sleep(1)
+                    st.rerun()
                 else:
-                    st.session_state.confirm_delete_all = 'confirmed'
-                    st.warning("⚠️ Click again to confirm deletion")
+                    st.error(message)
         
         with col2:
-            st.markdown("### 📊 System Reset")
-            st.info("Reset system to initial state")
-            
-            if st.button("🔄 Reset System", type="secondary"):
-                if st.session_state.get('confirm_reset') == 'confirmed':
-                    try:
-                        from database.initialization import init_database
-                        init_database()
-                        st.success("✅ System reset successfully")
-                        st.session_state.confirm_reset = None
-                    except Exception as e:
-                        st.error(f"❌ Error resetting system: {str(e)}")
+            st.markdown("### 📊 Reinitialize System Schema")
+            st.info("Re-runs database initialization. Existing data is preserved.")
+
+            reset_phrase = st.text_input(
+                "Type REINITIALIZE SCHEMA to confirm",
+                key="danger_reset_phrase",
+                placeholder="REINITIALIZE SCHEMA",
+            )
+            reset_password = st.text_input(
+                "Admin password",
+                type="password",
+                key="danger_reset_password",
+            )
+
+            if st.button("🔄 Reinitialize Schema", type="secondary", key="danger_reset_schema"):
+                authorized, message = self._authorize_danger_action(
+                    reset_password,
+                    reset_phrase,
+                    "REINITIALIZE SCHEMA",
+                )
+                if not authorized:
+                    st.error(message)
+                    return
+
+                try:
+                    from database.connection import init_database
+
+                    init_database()
+                    self._audit_danger_action("danger_reinitialize_schema")
+                    st.success("✅ Database schema reinitialized successfully")
+                except Exception as e:
+                    st.error(f"❌ Error reinitializing schema: {str(e)}")
+
+        st.markdown("---")
+        st.markdown("### 🧬 Biometric Retention")
+        st.info(
+            "Deletes stored face embeddings for inactive students that are outside "
+            "the configured retention window. Attendance rows and inactive student "
+            "metadata are preserved."
+        )
+        purge_phrase = st.text_input(
+            "Type PURGE BIOMETRICS to confirm",
+            key="danger_purge_biometrics_phrase",
+            placeholder="PURGE BIOMETRICS",
+        )
+        purge_password = st.text_input(
+            "Admin password",
+            type="password",
+            key="danger_purge_biometrics_password",
+        )
+        if st.button("🧬 Purge Expired Biometrics", type="secondary", key="danger_purge_biometrics"):
+            authorized, message = self._authorize_danger_action(
+                purge_password,
+                purge_phrase,
+                "PURGE BIOMETRICS",
+            )
+            if not authorized:
+                st.error(message)
+                return
+
+            try:
+                if not self.student_service:
+                    st.error("Student service is unavailable.")
+                    return
+                count, message = self.student_service.purge_inactive_biometrics()
+                self._audit_danger_action(
+                    "danger_purge_expired_biometrics",
+                    {"deleted_embeddings": count},
+                )
+                if count:
+                    st.success(f"✅ {message}")
                 else:
-                    st.session_state.confirm_reset = 'confirmed'
-                    st.warning("⚠️ Click again to confirm reset")
+                    st.info(message)
+            except Exception as e:
+                st.error(f"❌ Error purging biometrics: {str(e)}")
+
+    def _authorize_danger_action(
+        self,
+        password: str,
+        typed_phrase: str,
+        expected_phrase: str,
+    ) -> Tuple[bool, str]:
+        """Require typed confirmation and current admin password for dangerous actions."""
+        if typed_phrase != expected_phrase:
+            return False, f"Type `{expected_phrase}` exactly to confirm."
+        if not password:
+            return False, "Enter your admin password to continue."
+
+        actor = self.session_manager.get_current_user() or {}
+        email = actor.get("email")
+        if not email:
+            return False, "Could not identify the current admin session."
+
+        try:
+            from auth.authentication import AuthenticationService
+
+            auth = AuthenticationService()
+            user = auth.user_repo.get_user_by_email(email)
+            if not user or user.get("role") != "admin":
+                return False, "Only admins can perform this action."
+            if not auth.verify_password(password, user["password_hash"]):
+                return False, "Admin password is incorrect."
+            return True, "Authorized"
+        except Exception as e:
+            logger.error("Danger action authorization failed: %s", e)
+            return False, "Could not verify admin password."
+
+    def _delete_all_student_data(self) -> Tuple[bool, str]:
+        """Delete all student, embedding, and attendance data through the service layer."""
+        try:
+            if not self.student_service:
+                return False, "Student service is unavailable."
+
+            success, message = self.student_service.delete_all_students()
+            if success:
+                self._audit_danger_action(
+                    "danger_delete_all_student_data",
+                    {"tables": ["face_embeddings", "attendance", "students"]},
+                )
+                return True, f"✅ {message}"
+            return False, f"❌ {message}"
+        except Exception as e:
+            logger.error("Danger delete all failed: %s", e)
+            return False, f"❌ Error deleting data: {str(e)}"
+
+    def _audit_danger_action(self, action: str, detail: Optional[Dict] = None) -> None:
+        """Best-effort audit logging for destructive admin actions."""
+        try:
+            from services.audit_service import log as audit_log
+
+            actor = self.session_manager.get_current_user()
+            audit_log(
+                action,
+                actor_email=(actor or {}).get("email"),
+                detail=detail or {},
+            )
+        except Exception:
+            pass

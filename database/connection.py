@@ -119,6 +119,10 @@ def init_database():
                     is_active BOOLEAN DEFAULT 1
                 )
             ''')
+
+            cols = _table_columns(cursor, "students")
+            if "deleted_at" not in cols:
+                cursor.execute("ALTER TABLE students ADD COLUMN deleted_at TIMESTAMP")
             
             # Create face_embeddings table
             cursor.execute('''

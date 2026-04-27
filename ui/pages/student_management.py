@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 import time
 import logging
+from io import BytesIO
 from typing import List, Dict, Optional
 
 from ui.components.layout import render_page_header, section_title, card_container
@@ -240,39 +241,18 @@ class StudentManagementPage:
                         st.exception(e)
     
     def _add_student_to_database(self, student_data: Dict, image_data: List) -> tuple:
-        """Add student to database with multiple fallback methods"""
+        """Add student to database through the student service."""
         try:
-            # Try service first if available
             if self.student_service:
-                try:
-                    success, message = self.student_service.add_student_with_photos(
-                        name=student_data['name'],
-                        roll_number=student_data['roll_number'],
-                        email=student_data['email'],
-                        phone=student_data['phone'],
-                        course=student_data['course'],
-                        images=image_data
-                    )
-                    return success, message
-                except Exception as e:
-                    logger.warning(f"Service failed, trying direct database: {e}")
-            
-            # Fallback to direct database function
-            from db import add_student_with_photos
-            
-            success = add_student_with_photos(
-                name=student_data['name'],
-                roll_number=student_data['roll_number'],
-                email=student_data['email'],
-                phone=student_data['phone'],
-                course=student_data['course'],
-                images=image_data
-            )
-            
-            if success:
-                return True, "Student registered successfully"
-            else:
-                return False, "Failed to register student - check for duplicate roll number or email"
+                return self.student_service.add_student_with_photos(
+                    name=student_data['name'],
+                    roll_number=student_data['roll_number'],
+                    email=student_data['email'],
+                    phone=student_data['phone'],
+                    course=student_data['course'],
+                    images=image_data
+                )
+            return False, "Student service is unavailable. Check application startup logs."
                 
         except Exception as e:
             logger.error(f"Database registration error: {e}")
@@ -594,18 +574,14 @@ class StudentManagementPage:
                 st.rerun()
     
     def _get_students_safely(self) -> List[Dict]:
-        """Get students list with multiple fallback methods"""
+        """Get students list from the student service."""
         try:
             if self.student_service:
                 return self.student_service.get_all_students()
+            st.error("Student service is unavailable. Check application startup logs.")
+            return []
         except Exception as e:
-            logger.warning(f"Service failed, trying direct database: {e}")
-        
-        try:
-            from db import get_all_students
-            return get_all_students()
-        except Exception as e:
-            logger.error(f"Direct database also failed: {e}")
+            logger.error(f"Student service failed: {e}")
             return []
     
     def _filter_and_sort_students(self, students: List[Dict], search_term: str, sort_by: str) -> List[Dict]:
@@ -828,20 +804,13 @@ class StudentManagementPage:
             st.error(f"❌ Error processing deletion: {str(e)}")
     
     def _delete_student_safely(self, roll_number: str) -> tuple:
-        """Delete student with multiple fallback methods"""
+        """Delete student through the student service."""
         try:
             if self.student_service:
                 return self.student_service.delete_student_by_roll(roll_number)
+            return False, "Student service is unavailable"
         except Exception as e:
-            logger.warning(f"Service deletion failed, trying direct: {e}")
-        
-        try:
-            from db import delete_student
-            success = delete_student(roll_number)
-            message = "Student deleted successfully" if success else "Failed to delete student"
-            return success, message
-        except Exception as e:
-            logger.error(f"Direct deletion failed: {e}")
+            logger.error(f"Student deletion failed: {e}")
             return False, str(e)
     
     def _handle_student_export(self, students: List[Dict], format_type: str):
@@ -860,10 +829,12 @@ class StudentManagementPage:
             elif format_type == "Excel":
                 # For Excel export (requires openpyxl)
                 try:
-                    excel_data = df.to_excel(index=False)
+                    buffer = BytesIO()
+                    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                        df.to_excel(writer, index=False, sheet_name="Students")
                     st.download_button(
                         label="📥 Download Excel",
-                        data=excel_data,
+                        data=buffer.getvalue(),
                         file_name=f"students_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
