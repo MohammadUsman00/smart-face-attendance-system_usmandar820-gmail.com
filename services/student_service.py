@@ -165,8 +165,9 @@ class StudentService:
                     target_id=roll_number,
                     detail={"embedding_count": successful_embeddings},
                 )
-                # Invalidate and rebuild embedding cache after successful registration
+                # Invalidate both caches after successful enrollment
                 self._refresh_embedding_cache(force_refresh=True)
+                self._invalidate_verification_cache()
                 return True, f"Student {name} added successfully with {successful_embeddings} face photos"
             else:
                 return False, message
@@ -278,8 +279,8 @@ class StudentService:
         success, message = self.student_repo.delete_student(student_id)
         if success:
             _audit_biometric("biometric_student_deleted", target_id=str(student_id))
-            # Invalidate cache so deleted embeddings are not used
             self._refresh_embedding_cache(force_refresh=True)
+            self._invalidate_verification_cache()
         return success, message
 
     def delete_student_by_roll(self, roll_number: str) -> Tuple[bool, str]:
@@ -288,7 +289,16 @@ class StudentService:
         if success:
             _audit_biometric("biometric_student_deleted", target_id=roll_number)
             self._refresh_embedding_cache(force_refresh=True)
+            self._invalidate_verification_cache()
         return success, message
+
+    def _invalidate_verification_cache(self) -> None:
+        """Clear the per-roll LRU embedding cache in verification_engine."""
+        try:
+            from face_recognition.verification_engine import invalidate_roll_cache
+            invalidate_roll_cache()
+        except Exception:
+            pass
 
     # -------- Embedding cache helpers --------
     def _refresh_embedding_cache(self, force_refresh: bool = False) -> List[Tuple[int, str, str, object]]:

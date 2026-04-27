@@ -121,11 +121,18 @@ class ConfigurationError(RuntimeError):
 
 def validate_security_config() -> None:
     """Fail fast on missing or known-unsafe security settings."""
+    # Re-read critical values each validation call so local .env edits are picked
+    # up during Streamlit reruns without requiring a full Python process restart.
+    secret_key = get_config_value("SECRET_KEY")
+    salt = get_config_value("SALT")
+    admin_email = get_config_value("ADMIN_EMAIL")
+    admin_password = get_config_value("ADMIN_PASSWORD")
+
     required = {
-        "SECRET_KEY": SECRET_KEY,
-        "SALT": SALT,
-        "ADMIN_EMAIL": ADMIN_EMAIL,
-        "ADMIN_PASSWORD": ADMIN_PASSWORD,
+        "SECRET_KEY": secret_key,
+        "SALT": salt,
+        "ADMIN_EMAIL": admin_email,
+        "ADMIN_PASSWORD": admin_password,
     }
     missing = [key for key, value in required.items() if not value]
     if missing:
@@ -154,11 +161,11 @@ def validate_security_config() -> None:
             + ". Replace them with strong unique secrets."
         )
 
-    if len(SECRET_KEY) < 32:
+    if len(secret_key.strip()) < 32:
         raise ConfigurationError("SECRET_KEY must be at least 32 characters.")
-    if len(SALT) < 16:
+    if len(salt.strip()) < 16:
         raise ConfigurationError("SALT must be at least 16 characters.")
-    if len(ADMIN_PASSWORD) < max(MIN_PASSWORD_LENGTH, 12):
+    if len(admin_password.strip()) < max(MIN_PASSWORD_LENGTH, 12):
         raise ConfigurationError(
             f"ADMIN_PASSWORD must be at least {max(MIN_PASSWORD_LENGTH, 12)} characters."
         )

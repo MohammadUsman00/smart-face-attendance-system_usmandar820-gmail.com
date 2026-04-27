@@ -47,7 +47,10 @@ class AttendanceService:
         return f"Face not recognized ({reason}). Best similarity: {confidence:.2f}"
 
     def mark_attendance_by_recognition(self, image, marked_by: str = 'system') -> Tuple[bool, str, Optional[Dict]]:
-        """Mark attendance using face recognition"""
+        """
+        Mark attendance using 1:N global recognition (legacy / fallback path).
+        Prefer mark_attendance_by_verification for production accuracy.
+        """
         try:
             is_recognized, student_info, confidence, meta = self.student_service.recognize_student(image)
 
@@ -67,6 +70,82 @@ class AttendanceService:
         except Exception as e:
             logger.error(f"Error marking attendance by recognition: {e}")
             return False, f"Error marking attendance: {str(e)}", None
+
+    def mark_attendance_by_verification(
+        self,
+        image,
+        roll_number: str,
+        marked_by: str = "face_verification",
+    ) -> Tuple[bool, str, Optional[Dict]]:
+        """
+        Mark attendance using roll-bound 1:1 verification (production path).
+
+        The student identifies themselves by roll number, then the system
+        verifies that the captured face matches ONLY that student's enrolled
+        templates.  This prevents misidentification between similar-looking
+        students.
+
+        Returns: (success, message, student_info_dict or None)
+        """
+        try:
+            from face_recognition.verification_engine import (
+                get_embeddings_for_roll,
+                verify_identity,
+            )
+
+            roll_number = roll_number.strip().upper()
+
+            # Fetch enrolled templates for the claimed roll
+            student_id, student_name, gallery_embeddings = get_embeddings_for_roll(
+                roll_number
+            )
+
+            if student_id is None:
+                return (
+                    False,
+                    f"Roll number '{roll_number}' not found or has no enrolled face data. "
+                    "Please check your roll number or ask an admin to re-enroll you.",
+                    None,
+                )
+
+            # 1:1 verification
+            result = verify_identity(image, gallery_embeddings)
+
+            if not result.verified:
+                logger.warning(
+                    "Verification failed for roll=%s reason=%s similarity=%.3f",
+                    roll_number,
+                    result.reason,
+                    result.similarity,
+                )
+                return False, result.display_message, None
+
+            # Mark attendance
+            success, message = self.attendance_repo.mark_attendance(
+                student_id, "present", marked_by
+            )
+
+            student_info = {
+                "student_id": student_id,
+                "name": student_name,
+                "roll_number": roll_number,
+                "recognition_confidence": result.similarity,
+                "recognition_margin": None,
+                "runner_up_similarity": None,
+                "verified_by": "1:1_verification",
+            }
+
+            logger.info(
+                "Attendance marked via 1:1 verification: %s (%.3f)",
+                student_name,
+                result.similarity,
+            )
+
+            return success, message, student_info
+
+        except Exception as e:
+            logger.error("Error in mark_attendance_by_verification: %s", e)
+            return False, f"Verification error: {str(e)}", None
     
     def mark_attendance_manual(self, student_id: int, status: str = 'present', 
                              marked_by: str = 'manual') -> Tuple[bool, str]:

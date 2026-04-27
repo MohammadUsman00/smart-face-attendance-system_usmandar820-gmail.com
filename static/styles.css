@@ -143,6 +143,15 @@
     transition: var(--transition-normal);
 }
 
+/* Ensure baseline text contrast everywhere */
+.stApp, .stApp p, .stApp li, .stApp span, .stApp label, .stApp div {
+    color: var(--text-primary);
+}
+
+.stMarkdown p, .stMarkdown li, .stMarkdown span, .stCaption {
+    color: var(--text-secondary) !important;
+}
+
 /* ===== SIDEBAR STYLING ===== */
 .css-1d391kg {
     background: var(--bg-secondary) !important;
@@ -278,7 +287,7 @@
 
 .stWarning {
     background: var(--gradient-warning) !important;
-    color: white !important;
+    color: #111827 !important;
     border: 1px solid rgba(245, 158, 11, 0.3) !important;
 }
 
@@ -549,8 +558,8 @@
 }
 
 /* ===== SMOOTH THEME TRANSITION ===== */
-* {
-    transition: background-color var(--transition-normal), 
-                color var(--transition-normal), 
+.stApp, .main .block-container, .stButton button, .streamlit-expanderHeader {
+    transition: background-color var(--transition-normal),
+                color var(--transition-normal),
                 border-color var(--transition-normal);
 }

@@ -62,4 +62,5 @@ jobs:
             tests/test_security_config.py \
             tests/test_student_repository.py \
             tests/test_attendance_pipeline.py \
-            tests/test_mask_gate.py
+            tests/test_mask_gate.py \
+            tests/test_verification_engine.py

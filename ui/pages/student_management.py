@@ -6,7 +6,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import cv2
-import time
 import logging
 from io import BytesIO
 from typing import List, Dict, Optional
@@ -59,7 +58,6 @@ class StudentManagementPage:
             self._clear_all_form_fields()
             st.session_state.clear_student_form = False
             st.success("🔄 Form cleared! You can now register another student.")
-            time.sleep(1)
             st.rerun()
         
         st.markdown("#### 📝 Student Information")
@@ -419,17 +417,9 @@ class StudentManagementPage:
         
         st.success(f"✨ **{student_data['name']}** has been successfully registered!")
         
-        # Auto-clear form with countdown
+        # Auto-clear form immediately after a successful registration
         st.markdown("---")
-        st.info("🔄 **Form will be cleared automatically in 3 seconds...**")
-        
-        # Show countdown
-        countdown_placeholder = st.empty()
-        for i in range(3, 0, -1):
-            countdown_placeholder.info(f"🔄 Clearing form in {i} seconds... (Refresh page to cancel)")
-            time.sleep(1)
-        
-        countdown_placeholder.empty()
+        st.info("🔄 Clearing form for next registration...")
         
         # Clear form and rerun
         st.session_state.clear_student_form = True
@@ -782,9 +772,6 @@ class StudentManagementPage:
                         
                         # Clear confirmation state
                         st.session_state[confirm_key] = False
-                        
-                        # Wait and refresh
-                        time.sleep(2)
                         st.rerun()
                     else:
                         st.error(f"❌ Error removing student: {message}")

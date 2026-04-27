@@ -2,7 +2,6 @@
 Login page component — auth navigation, password reset, and session integration.
 """
 import streamlit as st
-import time
 import logging
 from typing import Optional, Dict, Tuple
 
@@ -89,7 +88,6 @@ class LoginPage:
                     st.session_state.pop("totp_challenge", None)
                     self.session_manager.login_user(user_data)
                     st.success("Signed in.")
-                    time.sleep(0.4)
                     st.rerun()
                 else:
                     st.error(msg or "Invalid code.")
@@ -181,7 +179,6 @@ class LoginPage:
                     return
                 self.session_manager.login_user(user_data)
                 st.success("Signed in successfully.")
-                time.sleep(0.5)
                 st.rerun()
             else:
                 st.error(message or "Invalid email or password.")
@@ -243,7 +240,6 @@ class LoginPage:
                 st.success("Password updated. You can sign in with your new password.")
                 self._clear_password_reset_session()
                 st.session_state[AUTH_NAV_KEY] = "Login"
-                time.sleep(1.0)
                 st.rerun()
             else:
                 st.error(message)

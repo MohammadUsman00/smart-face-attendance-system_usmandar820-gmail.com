@@ -1,8 +1,10 @@
 """
-Attendance marking page component - Enhanced with debugging
-Extracted from app.py attendance functionality
+Attendance marking page — roll-bound 1:1 face verification.
+
+Students enter their roll number then capture/upload a face photo.
+The face is verified ONLY against that specific student's enrolled
+templates, preventing cross-student misidentification.
 """
-import time
 import streamlit as st
 import cv2
 import numpy as np
@@ -12,85 +14,216 @@ from datetime import date, datetime
 from typing import Optional, Dict, Tuple
 from services.attendance_service import AttendanceService
 from config.settings import RECOGNITION_THRESHOLD, RECOGNITION_MARGIN
-from ui.components.forms import AttendanceForm
 from ui.components.layout import render_page_header, section_title, card_container
 
 logger = logging.getLogger(__name__)
 
+
 class AttendancePage:
-    """Enhanced attendance marking page with debug capabilities"""
-    
+    """Roll-bound 1:1 verification attendance page."""
+
     def __init__(self):
         self.attendance_service = AttendanceService()
-    
+
     def render(self):
-        """Render attendance marking page"""
         render_page_header(
-            title="Live Face Attendance",
-            subtitle="Use the camera or upload a photo to mark IN/OUT attendance in real time.",
+            title="Mark Attendance",
+            subtitle="Enter your roll number, then take or upload a face photo for identity verification.",
             icon="📷",
         )
-        
-        # Add debug mode toggle
-        debug_mode = st.checkbox("🔍 Enable Recognition Debug Mode", 
-                               help="Show detailed analysis when face recognition fails")
-        
-        # Instructions
-        self._render_instructions()
-        self._render_recognition_calibration()
-        
+
+        debug_mode = st.checkbox(
+            "🔍 Debug Mode",
+            help="Show detailed analysis when verification fails.",
+        )
+
+        with st.expander("📋 How to Use", expanded=False):
+            st.markdown(
+                """
+                **Verification steps:**
+                1. Enter your roll number exactly as registered.
+                2. Take a clear face photo using the camera (or upload one).
+                3. The system verifies your face against your enrollment photos.
+                4. Attendance is marked only if identity is confirmed.
+
+                **Tips for best results:**
+                - Good, even lighting on your face.
+                - Face the camera directly — similar angle to your registration photos.
+                - No mask, sunglasses, or obstructions.
+                - One person visible at a time.
+
+                **Mask rule:** attendance is blocked if a mask/covering is detected.
+                """
+            )
+
         col1, col2 = st.columns([3, 1])
-        
         with col1:
             with card_container():
-                section_title("Camera & Upload", icon="🎥")
-                self._render_camera_section(debug_mode)
-        
+                section_title("Identity Verification", icon="🎥")
+                self._render_verification_section(debug_mode)
+
         with col2:
             with card_container():
                 section_title("Today's Summary", icon="📊")
                 self._render_summary_section()
-    
-    def _render_instructions(self):
-        """Render usage instructions"""
-        with st.expander("📋 How to Use", expanded=False):
-            st.markdown("""
-            **For best results:**
-            - ✅ Ensure good lighting
-            - ✅ Look directly at the camera
-            - ✅ Keep your face clearly visible
-            - ✅ Remove any obstructions (mask, hand, etc.)
-            - ✅ Stay still when taking the photo
-            - ✅ Use similar angle as registration photos
-            
-            **System automatically detects:**
-            - 🟢 **IN** - When entering college
-            - 🔴 **OUT** - When leaving college
-            
-            **Live mask check (WebRTC):** Use sidebar **Live Mask Detection** for a real-time mask preview (separate from attendance marking).
-            
-            **If recognition fails:**
-            - 🔍 Enable debug mode for detailed analysis
-            - 📸 Try taking another photo with better lighting
-            - 📐 Use similar distance and angle as registration
-            """)
-    
-    def _render_camera_section(self, debug_mode: bool = False):
-        """Render camera input section"""
-        # Camera input using form component
-        camera_input = AttendanceForm.render_camera_input()
-        
-        if camera_input is not None:
-            self._process_attendance_image(camera_input, debug_mode, source="camera")
-        
+
+    # ──────────────────────────────────────────
+    # Main verification section
+    # ──────────────────────────────────────────
+
+    def _render_verification_section(self, debug_mode: bool = False):
+        """Roll number input + camera/upload + verification trigger."""
+        roll_input = st.text_input(
+            "🎫 Roll Number",
+            placeholder="e.g. CS2024001",
+            help="Enter your roll number exactly as registered.",
+            key="attend_roll_input",
+        ).strip().upper()
+
+        if not roll_input:
+            st.info("👆 Enter your roll number above, then capture your face.")
+            return
+
         st.markdown("---")
-        
-        # Alternative file upload
-        uploaded_file = AttendanceForm.render_file_upload()
-        
-        if uploaded_file is not None:
-            self._process_attendance_image(uploaded_file, debug_mode, source="upload")
+        st.markdown("**Camera capture**")
+        camera_input = st.camera_input(
+            "Take a clear face photo",
+            key="attend_camera_input",
+            help="Face the camera with good lighting.",
+        )
+
+        if camera_input is not None:
+            self._run_verification(camera_input, roll_input, debug_mode, source="camera")
+            return
+
+        st.markdown("**— or upload a photo —**")
+        uploaded = st.file_uploader(
+            "Upload face photo",
+            type=["jpg", "jpeg", "png"],
+            key="attend_upload",
+            label_visibility="collapsed",
+        )
+        if uploaded is not None:
+            self._run_verification(uploaded, roll_input, debug_mode, source="upload")
     
+    # ──────────────────────────────────────────
+    # Verification pipeline
+    # ──────────────────────────────────────────
+
+    def _run_verification(self, image_input, roll_number: str, debug_mode: bool, source: str):
+        """Convert image, run mask gate, then 1:1 verification."""
+
+        with st.spinner("Processing image…"):
+            image = self._convert_image_input(image_input, debug_mode)
+
+        if image is None:
+            st.error("❌ Could not read the image. Try a different photo.")
+            return
+
+        # Mask gate
+        with st.spinner("Checking face covering…"):
+            try:
+                from face_mask.mask_gate import check_face_uncovered_for_attendance
+                allowed, mask_msg, mask_detail = check_face_uncovered_for_attendance(image)
+                if not allowed:
+                    st.error("🚫 Mask or face covering detected")
+                    st.warning(mask_msg)
+                    st.caption(
+                        "Remove any face covering and take the photo again "
+                        "so your face is clearly visible."
+                    )
+                    if debug_mode and mask_detail:
+                        with st.expander("Mask check details"):
+                            st.json(mask_detail)
+                    return
+            except Exception as exc:
+                logger.error("Mask gate error: %s", exc)
+                st.error("Face covering check failed. Try again or contact an admin.")
+                return
+
+        # 1:1 verification + attendance marking
+        with st.spinner("Verifying identity…"):
+            success, message, student_info = (
+                self.attendance_service.mark_attendance_by_verification(
+                    image,
+                    roll_number,
+                    marked_by=f"1:1_verification_{source}",
+                )
+            )
+
+        if success and student_info:
+            self._show_verification_success(student_info, message, debug_mode)
+        else:
+            self._show_verification_failure(message, image, roll_number, debug_mode)
+
+    def _show_verification_success(self, student_info: Dict, message: str, debug_mode: bool):
+        similarity = student_info.get("recognition_confidence", 0.0)
+
+        st.success(f"✅ Welcome, **{student_info['name']}**!")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.info(f"🎫 Roll: {student_info['roll_number']}")
+            if student_info.get("course"):
+                st.info(f"📚 Course: {student_info['course']}")
+        with c2:
+            confidence_pct = int(similarity * 100)
+            st.info(f"🔒 Identity confidence: **{confidence_pct}%**")
+            badge = "1:1 Verified" if student_info.get("verified_by") == "1:1_verification" else "Matched"
+            st.caption(f"Method: {badge}")
+
+        st.success(f"📋 {message}")
+        self._show_student_daily_status(student_info["student_id"])
+        st.balloons()
+
+    def _show_verification_failure(self, message: str, image: np.ndarray, roll_number: str, debug_mode: bool):
+        st.error("❌ Identity not verified")
+        st.warning(message)
+
+        if not debug_mode:
+            st.info(
+                """
+                **Common causes:**
+                - Incorrect roll number — check with your admin.
+                - Poor lighting or image blur — use bright, even lighting.
+                - Face angle differs from registration photos.
+                - Partial face visible — face the camera fully.
+                """
+            )
+            return
+
+        # Debug: image quality analysis
+        with st.expander("🔍 Image Quality Analysis", expanded=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                rgb_for_display = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if len(image.shape) == 3 else image
+                st.image(rgb_for_display, caption="Input photo", width=220)
+                st.caption(f"Shape: {image.shape}  dtype: {image.dtype}")
+            with c2:
+                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+                brightness = float(np.mean(gray))
+                blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+                st.metric("Brightness", f"{brightness:.0f}/255")
+                st.metric("Sharpness", f"{blur_score:.0f}")
+                if brightness < 60:
+                    st.caption("⚠️ Too dark — increase lighting.")
+                elif brightness > 215:
+                    st.caption("⚠️ Too bright — reduce glare.")
+                if blur_score < 80:
+                    st.caption("⚠️ Blurry — hold still.")
+
+        # Debug: enrollment template count
+        if roll_number:
+            with st.expander("📷 Enrollment Info", expanded=True):
+                try:
+                    from face_recognition.verification_engine import get_embeddings_for_roll
+                    sid, sname, embs = get_embeddings_for_roll(roll_number)
+                    if sid:
+                        st.success(f"Found {len(embs)} enrolled template(s) for {sname} ({roll_number}).")
+                    else:
+                        st.error(f"No enrollment found for roll number '{roll_number}'.")
+                except Exception as exc:
+                    st.caption(f"Could not fetch enrollment info: {exc}")
+
     def _render_summary_section(self):
         """Render today's summary section"""
         st.markdown("### 📊 Today's Summary")
@@ -372,20 +505,19 @@ class AttendancePage:
             """)
 
     def _render_recognition_calibration(self):
-        """Show the active recognition decision settings."""
-        with st.expander("🎯 Recognition Calibration", expanded=False):
+        """Show active verification settings."""
+        with st.expander("🎯 Verification Settings", expanded=False):
+            from config.settings import RECOGNITION_THRESHOLD, RECOGNITION_MARGIN
+            eff = RECOGNITION_THRESHOLD + 0.05
             st.markdown(
                 f"""
-                The attendance decision uses **cosine similarity** from the best registered
-                template per student.
+                Attendance uses **1:1 roll-bound face verification** (ArcFace cosine similarity).
 
-                - **Accept threshold:** `{RECOGNITION_THRESHOLD}`
-                - **Runner-up margin:** `{RECOGNITION_MARGIN}`
+                - **Verification threshold:** `{eff:.2f}` (threshold `{RECOGNITION_THRESHOLD}` + 0.05 boost)
+                - **Margin over 1:N path:** `{RECOGNITION_MARGIN}`
+                - **Policy:** face must match the *claimed* roll number's templates only.
 
-                A face is accepted only when the best student is above the threshold and,
-                when multiple students are registered, the best match beats the runner-up
-                by at least the configured margin. Tune `RECOGNITION_THRESHOLD` and
-                `RECOGNITION_MARGIN` in `.env` after collecting real classroom/campus samples.
+                Tune `RECOGNITION_THRESHOLD` in `.env` to adjust strictness.
                 """
             )
     
@@ -589,7 +721,6 @@ class AttendancePage:
             if success:
                 st.success(f"✅ {message}")
                 st.balloons()
-                time.sleep(2)
                 st.rerun()
             else:
                 st.error(f"❌ {message}")

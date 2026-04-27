@@ -5,7 +5,6 @@ Extracted from app.py dashboard functionality
 import streamlit as st
 import pandas as pd
 import logging
-import time
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from auth.session_manager import SessionManager
@@ -78,10 +77,6 @@ class DashboardPage:
         elif current_page == "Mark Attendance":
             attendance_page = AttendancePage()
             attendance_page.render()
-        elif current_page == "Live Mask Detection":
-            from ui.pages.live_mask_page import LiveMaskPage
-
-            LiveMaskPage().render()
         elif current_page == "Attendance Records":
             self._render_attendance_records()
         elif current_page == "Analytics":
@@ -121,10 +116,6 @@ class DashboardPage:
         elif current_page == "Mark Attendance":
             attendance_page = AttendancePage()
             attendance_page.render()
-        elif current_page == "Live Mask Detection":
-            from ui.pages.live_mask_page import LiveMaskPage
-
-            LiveMaskPage().render()
     
     def _render_admin_sidebar(self, user: Dict):
         """Render admin sidebar navigation"""
@@ -142,7 +133,6 @@ class DashboardPage:
             ]
             admin_buttons = [
                 ("🩺 System Health", "System Health", "admin_nav_health"),
-                ("🎥 Live Mask Detection", "Live Mask Detection", "admin_nav_mask"),
                 ("👤 User Management", "User Management", "admin_nav_users"),
                 ("⚠️ Danger Zone", "Danger Zone", "admin_nav_danger"),
             ]
@@ -167,7 +157,6 @@ class DashboardPage:
             nav_buttons = [
                 ("📷 Mark Attendance", "Mark Attendance", "user_nav_attendance"),
                 ("📈 My Dashboard", "User Dashboard", "user_nav_dashboard"),
-                ("🎥 Live Mask Detection", "Live Mask Detection", "user_nav_mask"),
             ]
             
             self._render_sidebar_buttons(nav_buttons)
@@ -437,10 +426,6 @@ class DashboardPage:
         
         if st.button("📊 View Analytics", use_container_width=True, key="dashboard_view_analytics"):
             st.session_state.current_page = "Analytics"
-            st.rerun()
-
-        if st.button("🎥 Live Mask Check", use_container_width=True, key="dashboard_live_mask"):
-            st.session_state.current_page = "Live Mask Detection"
             st.rerun()
 
         if st.button("🩺 System health", use_container_width=True, key="dashboard_health"):
@@ -739,7 +724,6 @@ class DashboardPage:
                 success, message = self._delete_all_student_data()
                 if success:
                     st.success(message)
-                    time.sleep(1)
                     st.rerun()
                 else:
                     st.error(message)
