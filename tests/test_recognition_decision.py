@@ -31,6 +31,8 @@ def test_single_student_threshold_pass(engine):
     assert ok is True
     assert info["student_id"] == 1
     assert meta["reason"] == "matched"
+    assert meta["threshold"] == engine.recognition_threshold
+    assert meta["required_margin"] == engine.recognition_margin
 
 
 def test_low_confidence(engine):

@@ -37,6 +37,7 @@ class AttendancePage:
         
         # Instructions
         self._render_instructions()
+        self._render_recognition_calibration()
         
         col1, col2 = st.columns([3, 1])
         
@@ -369,6 +370,24 @@ class AttendancePage:
             - Make sure you are registered in the system
             - Enable debug mode for detailed analysis
             """)
+
+    def _render_recognition_calibration(self):
+        """Show the active recognition decision settings."""
+        with st.expander("🎯 Recognition Calibration", expanded=False):
+            st.markdown(
+                f"""
+                The attendance decision uses **cosine similarity** from the best registered
+                template per student.
+
+                - **Accept threshold:** `{RECOGNITION_THRESHOLD}`
+                - **Runner-up margin:** `{RECOGNITION_MARGIN}`
+
+                A face is accepted only when the best student is above the threshold and,
+                when multiple students are registered, the best match beats the runner-up
+                by at least the configured margin. Tune `RECOGNITION_THRESHOLD` and
+                `RECOGNITION_MARGIN` in `.env` after collecting real classroom/campus samples.
+                """
+            )
     
     def _show_debug_analysis(self, image):
         """Show debug analysis of the image"""

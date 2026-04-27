@@ -54,7 +54,6 @@ EMBEDDING_SIZE = int(get_config_value("EMBEDDING_SIZE", "512"))
 RECOGNITION_THRESHOLD = float(get_config_value("RECOGNITION_THRESHOLD", "0.5"))
 # Minimum gap between best and second-best *student* similarity (reduces lookalike swaps).
 RECOGNITION_MARGIN = float(get_config_value("RECOGNITION_MARGIN", "0.08"))
-FACE_CONFIDENCE_THRESHOLD = float(get_config_value("SIMILARITY_THRESHOLD", "0.4"))
 # When false, do not embed the whole frame without a face box (safer; may require clearer photos).
 ALLOW_SKIP_DETECTION_FALLBACK = get_config_value(
     "ALLOW_SKIP_DETECTION_FALLBACK", "false"
