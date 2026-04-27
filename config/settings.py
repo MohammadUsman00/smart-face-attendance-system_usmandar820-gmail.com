@@ -63,6 +63,11 @@ ALLOW_SKIP_DETECTION_FALLBACK = get_config_value(
 BIOMETRIC_CACHE_ENABLED = _get_bool_config("BIOMETRIC_CACHE_ENABLED", "false")
 BIOMETRIC_CACHE_ENCRYPTION_KEY = get_config_value("BIOMETRIC_CACHE_ENCRYPTION_KEY")
 BIOMETRIC_CACHE_FILE = get_config_value("BIOMETRIC_CACHE_FILE", "embeddings.cache")
+BIOMETRIC_RETENTION_DAYS = int(get_config_value("BIOMETRIC_RETENTION_DAYS", "365"))
+BIOMETRIC_HARD_DELETE_ON_STUDENT_DELETE = _get_bool_config(
+    "BIOMETRIC_HARD_DELETE_ON_STUDENT_DELETE",
+    "true",
+)
 
 # UI settings
 PAGE_TITLE = "🎓 Smart Face Attendance System"

@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 
 import numpy as np
-from cryptography.fernet import Fernet
 
 from config.settings import (
     BASE_DIR,
@@ -34,9 +33,11 @@ def get_cache_path() -> Path:
     return EMBEDDINGS_FILE
 
 
-def _fernet() -> Optional[Fernet]:
+def _fernet():
     if not BIOMETRIC_CACHE_ENCRYPTION_KEY:
         return None
+    from cryptography.fernet import Fernet
+
     return Fernet(BIOMETRIC_CACHE_ENCRYPTION_KEY.encode("utf-8"))
 
 

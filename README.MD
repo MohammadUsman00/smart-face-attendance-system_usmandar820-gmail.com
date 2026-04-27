@@ -171,6 +171,7 @@ Create a `.env` file in the project root from `.env.example` (not committed). Th
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — first admin bootstrap (see migration / `ensure_admin_exists`)  
 - `SECRET_KEY`, `SALT` — strong unique values; generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"`  
 - `BIOMETRIC_CACHE_ENABLED=false` by default. If you enable it, also set `BIOMETRIC_CACHE_ENCRYPTION_KEY` with a Fernet key.  
+- `BIOMETRIC_RETENTION_DAYS`, `BIOMETRIC_HARD_DELETE_ON_STUDENT_DELETE` — control biometric retention and deletion behavior.  
 - Face recognition keys such as `RECOGNITION_THRESHOLD`, `RECOGNITION_MARGIN`, `MODEL_NAME`, `DETECTOR_BACKEND` as needed  
 
 Configuration is read from **environment variables** (including values loaded by `python-dotenv` from `.env`).

@@ -19,8 +19,8 @@ class AttendanceRepository:
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                today = date.today()
-                now = datetime.now()
+                today = date.today().isoformat()
+                now = datetime.now().isoformat(timespec="seconds")
                 
                 # Get student name
                 cursor.execute("SELECT name FROM students WHERE id = ?", (student_id,))
@@ -123,7 +123,7 @@ class AttendanceRepository:
         try:
             with get_db_connection() as conn:
                 cursor = conn.cursor()
-                today = date.today()
+                today = date.today().isoformat()
                 
                 # Total students
                 cursor.execute("SELECT COUNT(*) FROM students WHERE is_active = 1")

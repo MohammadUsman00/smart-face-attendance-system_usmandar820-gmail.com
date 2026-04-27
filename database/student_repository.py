@@ -5,9 +5,14 @@ Extracted from db.py student-related functions
 import logging
 import base64
 import numpy as np
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 from database.connection import get_db_connection
-from config.settings import EMBEDDING_SIZE
+from config.settings import (
+    BIOMETRIC_HARD_DELETE_ON_STUDENT_DELETE,
+    BIOMETRIC_RETENTION_DAYS,
+    EMBEDDING_SIZE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +105,13 @@ class StudentRepository:
                 if not student:
                     return False, "Student not found"
                 
-                # Soft delete
-                cursor.execute("UPDATE students SET is_active = 0 WHERE id = ?", (student_id,))
+                if BIOMETRIC_HARD_DELETE_ON_STUDENT_DELETE:
+                    cursor.execute("DELETE FROM face_embeddings WHERE student_id = ?", (student_id,))
+
+                cursor.execute(
+                    "UPDATE students SET is_active = 0, deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (student_id,),
+                )
                 conn.commit()
                 
                 logger.info(f"Student {student['name']} deleted")
@@ -125,7 +135,13 @@ class StudentRepository:
                 if not student:
                     return False, "Active student not found"
 
-                cursor.execute("UPDATE students SET is_active = 0 WHERE id = ?", (student["id"],))
+                if BIOMETRIC_HARD_DELETE_ON_STUDENT_DELETE:
+                    cursor.execute("DELETE FROM face_embeddings WHERE student_id = ?", (student["id"],))
+
+                cursor.execute(
+                    "UPDATE students SET is_active = 0, deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (student["id"],),
+                )
                 conn.commit()
 
                 logger.info("Student %s deleted by roll number %s", student["name"], roll_number)
@@ -134,6 +150,43 @@ class StudentRepository:
         except Exception as e:
             logger.error(f"Error deleting student by roll: {e}")
             return False, f"Error deleting student: {str(e)}"
+
+    def purge_inactive_biometrics(self, retention_days: int = BIOMETRIC_RETENTION_DAYS) -> Tuple[int, str]:
+        """Delete biometric embeddings for inactive students past retention window."""
+        try:
+            cutoff = (datetime.now() - timedelta(days=max(retention_days, 0))).isoformat(
+                sep=" ",
+                timespec="seconds",
+            )
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT id FROM students
+                    WHERE is_active = 0
+                      AND deleted_at IS NOT NULL
+                      AND deleted_at <= ?
+                    """,
+                    (cutoff,),
+                )
+                student_ids = [row["id"] for row in cursor.fetchall()]
+                if not student_ids:
+                    return 0, "No inactive biometric records eligible for purge"
+
+                placeholders = ",".join("?" for _ in student_ids)
+                cursor.execute(
+                    f"DELETE FROM face_embeddings WHERE student_id IN ({placeholders})",
+                    student_ids,
+                )
+                deleted_count = cursor.rowcount
+                conn.commit()
+
+                logger.info("Purged %s biometric embeddings for inactive students", deleted_count)
+                return deleted_count, f"Purged {deleted_count} biometric embeddings"
+
+        except Exception as e:
+            logger.error(f"Error purging inactive biometrics: {e}")
+            return 0, f"Error purging biometrics: {str(e)}"
     
     def get_student_embeddings(self) -> List[Tuple]:
         """Get all student embeddings for recognition"""

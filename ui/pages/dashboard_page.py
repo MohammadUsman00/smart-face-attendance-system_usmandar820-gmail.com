@@ -778,6 +778,49 @@ class DashboardPage:
                 except Exception as e:
                     st.error(f"❌ Error reinitializing schema: {str(e)}")
 
+        st.markdown("---")
+        st.markdown("### 🧬 Biometric Retention")
+        st.info(
+            "Deletes stored face embeddings for inactive students that are outside "
+            "the configured retention window. Attendance rows and inactive student "
+            "metadata are preserved."
+        )
+        purge_phrase = st.text_input(
+            "Type PURGE BIOMETRICS to confirm",
+            key="danger_purge_biometrics_phrase",
+            placeholder="PURGE BIOMETRICS",
+        )
+        purge_password = st.text_input(
+            "Admin password",
+            type="password",
+            key="danger_purge_biometrics_password",
+        )
+        if st.button("🧬 Purge Expired Biometrics", type="secondary", key="danger_purge_biometrics"):
+            authorized, message = self._authorize_danger_action(
+                purge_password,
+                purge_phrase,
+                "PURGE BIOMETRICS",
+            )
+            if not authorized:
+                st.error(message)
+                return
+
+            try:
+                if not self.student_service:
+                    st.error("Student service is unavailable.")
+                    return
+                count, message = self.student_service.purge_inactive_biometrics()
+                self._audit_danger_action(
+                    "danger_purge_expired_biometrics",
+                    {"deleted_embeddings": count},
+                )
+                if count:
+                    st.success(f"✅ {message}")
+                else:
+                    st.info(message)
+            except Exception as e:
+                st.error(f"❌ Error purging biometrics: {str(e)}")
+
     def _authorize_danger_action(
         self,
         password: str,
