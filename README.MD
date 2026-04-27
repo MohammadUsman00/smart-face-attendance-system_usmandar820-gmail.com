@@ -1,45 +1,33 @@
-# Smart Face Attendance System  
+# Smart Face Attendance System
 
-**An AI-powered attendance management system with enterprise features, dual IN/OUT tracking, multi-photo registration, and advanced analytics.**  
+Touchless attendance with face recognition, dual IN/OUT tracking, role-based admin controls, analytics, and biometric-data safety features.
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
 [![DeepFace](https://img.shields.io/badge/DeepFace-0.0.90+-green.svg)](https://github.com/serengil/deepface)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 
 ---
 
-## Overview  
+## What Is Implemented
 
-The **Smart Face Attendance System** revolutionizes attendance tracking through **real-time AI-based face recognition**.  
-Designed for universities, enterprises, and organizations, it ensures:  
-
-- High accuracy (up to **99.5%**)  
-- Strong security features  
-- Real-time data insights and analytics  
-
-This project provides a modern alternative to traditional biometric and manual attendance systems.  
-
----
-
-## Real-World Problem & Solution  
-
-### The Problem  
-- Manual attendance wastes **10–15 minutes per class/meeting**.  
-- Conventional biometric systems (fingerprint, RFID) face issues like **proxy attendance, hygiene concerns, and delays**.  
-- A study by *Deloitte (2022)* revealed that organizations lose **$37 billion annually** due to inaccurate time and attendance tracking.  
-
-### The Solution  
-The **Smart Face Attendance System** solves these issues by offering:  
-- **Touchless, real-time face recognition** → reduces delays.  
-- **Dual IN/OUT tracking** → prevents proxy attendance.  
-- **Multi-photo registration** → ensures recognition accuracy even under different lighting/angles.  
-- **Automated analytics and reporting** → saves administrative overhead by up to **40%**.  
+- Attendance-first workflow in the dashboard/sidebar
+- Face recognition with configurable threshold and ambiguity margin
+- Multi-photo student enrollment (2-5 photos)
+- Auto IN/OUT attendance marking
+- Optional mask/covering gate before attendance marking
+- Analytics, CSV/Excel/PDF exports, and system health view
+- Admin controls with stronger safeguards for destructive actions
+- Security hardening: required env secrets, bcrypt auth, optional admin TOTP
+- Biometric lifecycle controls:
+  - encrypted embedding cache only when explicitly enabled
+  - hard-delete-on-student-delete toggle
+  - retention-based biometric purge action for inactive students
+- CI with focused tests + secret scanning
 
 ---
 
-## Features  
+## Features
 
 ### Core Functionality  
 - Face Recognition with **ArcFace + RetinaFace** (configurable thresholds and margin for safer matching)  
@@ -67,7 +55,7 @@ The **Smart Face Attendance System** solves these issues by offering:
 
 ---
 
-## Screenshots  
+## Screenshots
 
 ### System in Action  
 
@@ -133,7 +121,7 @@ The **Smart Face Attendance System** solves these issues by offering:
 
 ---
 
-## Tech Stack  
+## Tech Stack
 
 | Layer             | Technology              | Purpose                                      |
 | ----------------- | ----------------------- | -------------------------------------------- |
@@ -149,13 +137,13 @@ The **Smart Face Attendance System** solves these issues by offering:
 
 ---
 
-## Quick Start  
+## Quick Start
 
 ### 1. Clone and install  
 
 ```bash
-git clone https://github.com/MohammadUsman00/smart-face-attendance-system_usmandar820-gmail.com.git
-cd smart-face-attendance-system_usmandar820-gmail.com
+git clone https://github.com/MohammadUsman00/smart-face-attendance-system.git
+cd smart-face-attendance-system
 
 python -m venv .venv
 # Windows: .venv\Scripts\activate
@@ -166,12 +154,15 @@ pip install -r requirements.txt
 
 ### 2. Configure environment  
 
-Create a `.env` file in the project root from `.env.example` (not committed). The app fails fast if required security settings are missing or still use demo values. Set at least:
+Create `.env` from `.env.example` (not committed).  
+The app fails fast if required security settings are missing or unsafe.
+
+Required minimum:
 
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — first admin bootstrap (see migration / `ensure_admin_exists`)  
 - `SECRET_KEY`, `SALT` — strong unique values; generate with `python -c "import secrets; print(secrets.token_urlsafe(48))"`  
-- `BIOMETRIC_CACHE_ENABLED=false` by default. If you enable it, also set `BIOMETRIC_CACHE_ENCRYPTION_KEY` with a Fernet key.  
-- `BIOMETRIC_RETENTION_DAYS`, `BIOMETRIC_HARD_DELETE_ON_STUDENT_DELETE` — control biometric retention and deletion behavior.  
+- `BIOMETRIC_CACHE_ENABLED=false` by default. If enabled, also set `BIOMETRIC_CACHE_ENCRYPTION_KEY` (Fernet key).  
+- `BIOMETRIC_RETENTION_DAYS`, `BIOMETRIC_HARD_DELETE_ON_STUDENT_DELETE` — biometric retention/deletion behavior.  
 - Face recognition keys such as `RECOGNITION_THRESHOLD`, `RECOGNITION_MARGIN`, `MODEL_NAME`, `DETECTOR_BACKEND` as needed  
 
 Configuration is read from **environment variables** (including values loaded by `python-dotenv` from `.env`).
@@ -208,5 +199,21 @@ On **Linux/macOS**, replace the volume paths with `$(pwd)/data` and `$(pwd)/logs
 ### 5. Tests  
 
 ```bash
-python -m pytest tests/ -q
+python -m pytest tests/test_password_hashing.py tests/test_recognition_decision.py tests/test_reset_expires_parse.py tests/test_security_config.py tests/test_student_repository.py tests/test_attendance_pipeline.py tests/test_mask_gate.py -q
 ```
+
+---
+
+## Admin Panel
+
+Admin features currently include:
+- Student management (enroll/list/delete/export)
+- Live attendance marking and attendance record browsing
+- Analytics + health page
+- User management
+- Danger Zone with typed confirmation + admin password re-auth
+- Biometric retention purge action
+
+Admin credentials are controlled by `.env`:
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`

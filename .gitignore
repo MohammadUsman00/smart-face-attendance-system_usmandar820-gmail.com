@@ -35,6 +35,8 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.mypy_cache/
+.ruff_cache/
 nosetests.xml
 coverage.xml
 *.cover
@@ -87,6 +89,8 @@ models/
 # Environment variables
 .env.local
 .env.production
+.env.*
+!.env.example
 
 # Backup files
 *.bak
