@@ -110,6 +110,30 @@ class StudentRepository:
         except Exception as e:
             logger.error(f"Error deleting student: {e}")
             return False, f"Error deleting student: {str(e)}"
+
+    def delete_student_by_roll(self, roll_number: str) -> Tuple[bool, str]:
+        """Soft delete an active student by roll number."""
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+
+                cursor.execute(
+                    "SELECT id, name FROM students WHERE roll_number = ? AND is_active = 1",
+                    (roll_number,),
+                )
+                student = cursor.fetchone()
+                if not student:
+                    return False, "Active student not found"
+
+                cursor.execute("UPDATE students SET is_active = 0 WHERE id = ?", (student["id"],))
+                conn.commit()
+
+                logger.info("Student %s deleted by roll number %s", student["name"], roll_number)
+                return True, f"Student {student['name']} deleted successfully"
+
+        except Exception as e:
+            logger.error(f"Error deleting student by roll: {e}")
+            return False, f"Error deleting student: {str(e)}"
     
     def get_student_embeddings(self) -> List[Tuple]:
         """Get all student embeddings for recognition"""

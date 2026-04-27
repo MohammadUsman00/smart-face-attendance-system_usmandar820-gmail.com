@@ -256,6 +256,13 @@ class StudentService:
             self._refresh_embedding_cache(force_refresh=True)
         return success, message
 
+    def delete_student_by_roll(self, roll_number: str) -> Tuple[bool, str]:
+        """Delete student by roll number."""
+        success, message = self.student_repo.delete_student_by_roll(roll_number)
+        if success:
+            self._refresh_embedding_cache(force_refresh=True)
+        return success, message
+
     # -------- Embedding cache helpers --------
     def _refresh_embedding_cache(self, force_refresh: bool = False) -> List[Tuple[int, str, str, object]]:
         """
@@ -381,7 +388,11 @@ class StudentService:
     
     def delete_all_students(self) -> Tuple[bool, str]:
         """Delete all students and their data"""
-        return self.student_repo.delete_all_students()
+        success, message = self.student_repo.delete_all_students()
+        if success:
+            self._embedding_cache = []
+            clear_embeddings_cache()
+        return success, message
     
     def get_student_statistics(self) -> Dict:
         """Get student statistics"""
