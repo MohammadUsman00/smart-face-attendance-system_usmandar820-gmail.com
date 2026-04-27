@@ -1,20 +1,32 @@
 """
 Embedding cache utilities.
 
-Stores and loads face embeddings to a fast on-disk cache file (embeddings.npy)
-to speed up recognition, while keeping the SQLite database as the source of truth.
+SQLite remains the source of truth. The disk cache is disabled by default because
+face embeddings are biometric data; when enabled, cache bytes are encrypted.
 """
 
+import io
+import logging
 from pathlib import Path
 from typing import List, Tuple, Optional
 
 import numpy as np
+from cryptography.fernet import Fernet
 
-from config.settings import BASE_DIR, EMBEDDING_SIZE
+from config.settings import (
+    BASE_DIR,
+    BIOMETRIC_CACHE_ENABLED,
+    BIOMETRIC_CACHE_ENCRYPTION_KEY,
+    BIOMETRIC_CACHE_FILE,
+    EMBEDDING_SIZE,
+)
 from utils.face_utils import ensure_dir_exists
 
-# Cache file location: data/embeddings.npy
-EMBEDDINGS_FILE: Path = BASE_DIR / "data" / "embeddings.npy"
+logger = logging.getLogger(__name__)
+
+# Cache file location: data/embeddings.cache (encrypted when enabled)
+EMBEDDINGS_FILE: Path = BASE_DIR / "data" / BIOMETRIC_CACHE_FILE
+LEGACY_EMBEDDINGS_FILE: Path = BASE_DIR / "data" / "embeddings.npy"
 
 
 def get_cache_path() -> Path:
@@ -22,9 +34,26 @@ def get_cache_path() -> Path:
     return EMBEDDINGS_FILE
 
 
-def save_embeddings_cache(student_embeddings: List[Tuple[int, str, str, np.ndarray]]) -> Path:
+def _fernet() -> Optional[Fernet]:
+    if not BIOMETRIC_CACHE_ENCRYPTION_KEY:
+        return None
+    return Fernet(BIOMETRIC_CACHE_ENCRYPTION_KEY.encode("utf-8"))
+
+
+def _serialize_records(records: list) -> bytes:
+    buffer = io.BytesIO()
+    np.save(buffer, np.array(records, dtype=object))
+    return buffer.getvalue()
+
+
+def _deserialize_records(payload: bytes):
+    buffer = io.BytesIO(payload)
+    return np.load(buffer, allow_pickle=True)
+
+
+def save_embeddings_cache(student_embeddings: List[Tuple[int, str, str, np.ndarray]]) -> Optional[Path]:
     """
-    Persist student embeddings to embeddings.npy.
+    Persist student embeddings to the encrypted cache when enabled.
 
     The cache format is a NumPy object array of dicts:
     {
@@ -34,6 +63,16 @@ def save_embeddings_cache(student_embeddings: List[Tuple[int, str, str, np.ndarr
         "embedding": np.ndarray (float32, length EMBEDDING_SIZE)
     }
     """
+    if not BIOMETRIC_CACHE_ENABLED:
+        clear_embeddings_cache()
+        return None
+
+    cipher = _fernet()
+    if cipher is None:
+        logger.warning("Embedding cache skipped: encryption key is not configured")
+        clear_embeddings_cache()
+        return None
+
     ensure_dir_exists(EMBEDDINGS_FILE.parent)
 
     records = []
@@ -56,24 +95,32 @@ def save_embeddings_cache(student_embeddings: List[Tuple[int, str, str, np.ndarr
             }
         )
 
-    # Store as a 1D object array of dicts for flexibility
-    np.save(EMBEDDINGS_FILE, np.array(records, dtype=object))
+    plaintext = _serialize_records(records)
+    EMBEDDINGS_FILE.write_bytes(cipher.encrypt(plaintext))
     return EMBEDDINGS_FILE
 
 
 def load_embeddings_cache() -> Optional[List[Tuple[int, str, str, np.ndarray]]]:
     """
-    Load embeddings from embeddings.npy, if available.
+    Load embeddings from the encrypted cache, if enabled and available.
 
     Returns a list of (student_id, name, roll_number, embedding) tuples,
     or None if the cache file does not exist or is invalid.
     """
+    if not BIOMETRIC_CACHE_ENABLED:
+        clear_embeddings_cache()
+        return None
+
     if not EMBEDDINGS_FILE.exists():
         return None
 
     try:
-        # This requires allow_pickle=True because we stored dict objects.
-        raw = np.load(EMBEDDINGS_FILE, allow_pickle=True)
+        cipher = _fernet()
+        if cipher is None:
+            clear_embeddings_cache()
+            return None
+
+        raw = _deserialize_records(cipher.decrypt(EMBEDDINGS_FILE.read_bytes()))
         student_embeddings: List[Tuple[int, str, str, np.ndarray]] = []
 
         for item in raw:
@@ -98,17 +145,19 @@ def load_embeddings_cache() -> Optional[List[Tuple[int, str, str, np.ndarray]]]:
 
         return student_embeddings
 
-    except Exception:
+    except Exception as exc:
         # If anything goes wrong, treat cache as unavailable
+        logger.warning("Embedding cache unavailable: %s", exc)
         return None
 
 
 def clear_embeddings_cache() -> None:
     """Remove the embeddings cache file if it exists."""
-    try:
-        if EMBEDDINGS_FILE.exists():
-            EMBEDDINGS_FILE.unlink()
-    except Exception:
-        # Fail silently – cache is an optimization, not critical
-        pass
+    for cache_file in (EMBEDDINGS_FILE, LEGACY_EMBEDDINGS_FILE):
+        try:
+            if cache_file.exists():
+                cache_file.unlink()
+        except Exception:
+            # Cache is an optimization, not critical.
+            pass
 

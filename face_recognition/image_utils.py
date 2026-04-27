@@ -8,12 +8,23 @@ import cv2
 import logging
 from typing import Tuple, Optional
 
-from deepface import DeepFace
-
 from utils.image_converter import ImageConverter, validate_image_for_cv2
 from config.settings import DETECTOR_BACKEND
 
 logger = logging.getLogger(__name__)
+
+
+def _deepface():
+    """Import DeepFace lazily so non-ML image helpers remain importable."""
+    try:
+        from deepface import DeepFace
+
+        return DeepFace
+    except ImportError as exc:
+        raise RuntimeError(
+            "DeepFace is required for face detection. "
+            "Install project dependencies with: pip install -r requirements.txt"
+        ) from exc
 
 def ensure_rgb(frame_bgr):
     """Convert BGR to RGB for DeepFace compatibility with proper validation"""
@@ -115,7 +126,7 @@ def detect_face_in_image(image) -> Tuple[bool, str, Optional[np.ndarray]]:
         rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         # Use the configured detector backend (typically 'retinaface' or 'mtcnn')
-        faces = DeepFace.extract_faces(
+        faces = _deepface().extract_faces(
             img_path=rgb,
             detector_backend=DETECTOR_BACKEND,
             enforce_detection=False,

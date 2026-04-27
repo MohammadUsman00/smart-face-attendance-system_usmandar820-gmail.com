@@ -50,7 +50,13 @@ def setup_database_and_admin():
 
 try:
     # Import configuration and core components
-    from config.settings import PAGE_TITLE, PAGE_ICON, LAYOUT, SIDEBAR_STATE
+    from config.settings import (
+        PAGE_TITLE,
+        PAGE_ICON,
+        LAYOUT,
+        SIDEBAR_STATE,
+        validate_security_config,
+    )
     from config.logging_config import setup_logging
     from database.connection import init_database
     from auth.session_manager import SessionManager
@@ -93,6 +99,9 @@ def load_custom_css():
 def initialize_application():
     """Initialize application components"""
     try:
+        # Validate secrets before database/admin bootstrap can use them.
+        validate_security_config()
+
         # Initialize database
         init_database()
         logger.info("Database initialized successfully")
