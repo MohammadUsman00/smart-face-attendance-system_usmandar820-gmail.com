@@ -68,7 +68,7 @@ class DashboardPage:
         self._render_admin_sidebar(user)
         
         # Show current page based on session state
-        current_page = st.session_state.get('current_page', 'Dashboard Overview')
+        current_page = st.session_state.get('current_page', 'Mark Attendance')
         
         if current_page == "Dashboard Overview":
             self._render_dashboard_overview()
@@ -114,7 +114,7 @@ class DashboardPage:
         self._render_user_sidebar(user)
         
         # Show current page
-        current_page = st.session_state.get('current_page', 'User Dashboard')
+        current_page = st.session_state.get('current_page', 'Mark Attendance')
         
         if current_page == "User Dashboard":
             self._render_user_dashboard_content()
@@ -129,25 +129,32 @@ class DashboardPage:
     def _render_admin_sidebar(self, user: Dict):
         """Render admin sidebar navigation"""
         with st.sidebar:
-            st.markdown("### 🎯 Admin Control Panel")
+            st.markdown("### 🎯 Attendance Console")
             
-            # Navigation buttons with unique keys
-            nav_buttons = [
-                ("📈 Dashboard Overview", "Dashboard Overview", "admin_nav_dashboard"),
-                ("👥 Student Management", "Student Management", "admin_nav_students"),
+            primary_buttons = [
                 ("📷 Mark Attendance", "Mark Attendance", "admin_nav_attendance"),
-                ("🎥 Live Mask Detection", "Live Mask Detection", "admin_nav_mask"),
+                ("👥 Student Management", "Student Management", "admin_nav_students"),
                 ("📝 Attendance Records", "Attendance Records", "admin_nav_records"),
+            ]
+            insight_buttons = [
+                ("📈 Dashboard Overview", "Dashboard Overview", "admin_nav_dashboard"),
                 ("📊 Analytics", "Analytics", "admin_nav_analytics"),
+            ]
+            admin_buttons = [
                 ("🩺 System Health", "System Health", "admin_nav_health"),
+                ("🎥 Live Mask Detection", "Live Mask Detection", "admin_nav_mask"),
                 ("👤 User Management", "User Management", "admin_nav_users"),
-                ("⚠️ Danger Zone", "Danger Zone", "admin_nav_danger")
+                ("⚠️ Danger Zone", "Danger Zone", "admin_nav_danger"),
             ]
             
-            for button_text, page_name, key in nav_buttons:
-                if st.button(button_text, use_container_width=True, key=key):
-                    st.session_state.current_page = page_name
-                    st.rerun()
+            st.caption("Daily operation")
+            self._render_sidebar_buttons(primary_buttons)
+
+            st.caption("Review and insights")
+            self._render_sidebar_buttons(insight_buttons)
+
+            st.caption("Administration")
+            self._render_sidebar_buttons(admin_buttons)
             
             st.markdown("---")
             self._render_user_info_sidebar(user)
@@ -155,21 +162,28 @@ class DashboardPage:
     def _render_user_sidebar(self, user: Dict):
         """Render user sidebar navigation"""
         with st.sidebar:
-            st.markdown("### 🎯 Student Panel")
+            st.markdown("### 🎯 Attendance Console")
             
             nav_buttons = [
-                ("📈 My Dashboard", "User Dashboard", "user_nav_dashboard"),
                 ("📷 Mark Attendance", "Mark Attendance", "user_nav_attendance"),
+                ("📈 My Dashboard", "User Dashboard", "user_nav_dashboard"),
                 ("🎥 Live Mask Detection", "Live Mask Detection", "user_nav_mask"),
             ]
             
-            for button_text, page_name, key in nav_buttons:
-                if st.button(button_text, use_container_width=True, key=key):
-                    st.session_state.current_page = page_name
-                    st.rerun()
+            self._render_sidebar_buttons(nav_buttons)
             
             st.markdown("---")
             self._render_user_info_sidebar(user)
+
+    def _render_sidebar_buttons(self, buttons: List[Tuple[str, str, str]]) -> None:
+        """Render sidebar navigation buttons with the current page disabled."""
+        current_page = st.session_state.get("current_page", "Mark Attendance")
+        for button_text, page_name, key in buttons:
+            is_current = current_page == page_name
+            label = f"▶ {button_text}" if is_current else button_text
+            if st.button(label, use_container_width=True, key=key, disabled=is_current):
+                st.session_state.current_page = page_name
+                st.rerun()
     
     def _render_user_info_sidebar(self, user: Dict):
         """Render user info and logout button"""
@@ -409,12 +423,16 @@ class DashboardPage:
     
     def _render_quick_actions(self):
         """Render quick action buttons"""
-        if st.button("➕ Add New Student", use_container_width=True, key="dashboard_add_student"):
-            st.session_state.current_page = "Student Management"
+        if st.button("📷 Start Attendance", use_container_width=True, type="primary", key="dashboard_start_attendance"):
+            st.session_state.current_page = "Mark Attendance"
             st.rerun()
         
         if st.button("📝 View All Records", use_container_width=True, key="dashboard_view_records"):
             st.session_state.current_page = "Attendance Records"
+            st.rerun()
+
+        if st.button("➕ Add New Student", use_container_width=True, key="dashboard_add_student"):
+            st.session_state.current_page = "Student Management"
             st.rerun()
         
         if st.button("📊 View Analytics", use_container_width=True, key="dashboard_view_analytics"):
