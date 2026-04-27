@@ -276,8 +276,9 @@ class StudentService:
         # Fallback: build from database
         student_embeddings = self.student_repo.get_student_embeddings()
         if student_embeddings:
-            save_embeddings_cache(student_embeddings)
-            logger.info(f"Built embedding cache with {len(student_embeddings)} entries")
+            cache_path = save_embeddings_cache(student_embeddings)
+            if cache_path:
+                logger.info(f"Built encrypted embedding cache with {len(student_embeddings)} entries")
             self._embedding_cache = student_embeddings
         else:
             # No embeddings; clear any stale cache on disk

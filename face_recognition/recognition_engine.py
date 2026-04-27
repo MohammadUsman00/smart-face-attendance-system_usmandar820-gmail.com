@@ -7,7 +7,6 @@ import cv2
 import logging
 from collections import defaultdict
 from typing import Tuple, Optional, List, Dict, Any
-from deepface import DeepFace
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Suppress TensorFlow warnings
 
@@ -25,6 +24,19 @@ from face_recognition.image_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _deepface():
+    """Import DeepFace lazily so decision-logic tests can run without ML deps."""
+    try:
+        from deepface import DeepFace
+
+        return DeepFace
+    except ImportError as exc:
+        raise RuntimeError(
+            "DeepFace is required for face embedding generation. "
+            "Install project dependencies with: pip install -r requirements.txt"
+        ) from exc
 
 class FaceRecognitionEngine:
     """Enhanced face recognition processing engine with better error handling"""
@@ -46,7 +58,7 @@ class FaceRecognitionEngine:
             logger.info("Initializing face recognition models...")
             # Pre-load models by running a test
             test_image = np.ones((224, 224, 3), dtype=np.uint8) * 128
-            DeepFace.represent(
+            _deepface().represent(
                 img_path=test_image,
                 model_name=self.model_name,
                 detector_backend='skip',  # Skip detection for test
@@ -116,7 +128,7 @@ class FaceRecognitionEngine:
             
             rgb_image = ensure_rgb(image)
             
-            embedding_result = DeepFace.represent(
+            embedding_result = _deepface().represent(
                 img_path=rgb_image,
                 model_name=self.model_name,
                 detector_backend=self.detector_backend,
@@ -137,7 +149,7 @@ class FaceRecognitionEngine:
                 
                 rgb_image = ensure_rgb(image)
                 
-                embedding_result = DeepFace.represent(
+                embedding_result = _deepface().represent(
                     img_path=rgb_image,
                     model_name=self.model_name,
                     detector_backend='skip',
@@ -160,7 +172,7 @@ class FaceRecognitionEngine:
             if face_detected and face_region is not None:
                 rgb_face = ensure_rgb(face_region)
                 
-                embedding_result = DeepFace.represent(
+                embedding_result = _deepface().represent(
                     img_path=rgb_face,
                     model_name=self.model_name,
                     detector_backend='skip',
@@ -186,7 +198,7 @@ class FaceRecognitionEngine:
                 
                 rgb_image = ensure_rgb(image)
                 
-                embedding_result = DeepFace.represent(
+                embedding_result = _deepface().represent(
                     img_path=rgb_image,
                     model_name=self.model_name,
                     detector_backend=backend,
